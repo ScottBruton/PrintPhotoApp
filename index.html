@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Photo Layout Editor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <button id="addPage" class="toolbar-btn">+ Add Page</button>
+            <button id="saveLayout" class="toolbar-btn">Save</button>
+            <button id="loadLayout" class="toolbar-btn">Load</button>
+            <button id="exportPDF" class="toolbar-btn">Export PDF</button>
+            <button id="printPreview" class="toolbar-btn">Print Preview</button>
+        </div>
+        <div class="toolbar-center">
+            <button id="undo" class="toolbar-btn">↶ Undo</button>
+            <button id="redo" class="toolbar-btn">↷ Redo</button>
+        </div>
+        <div class="page-navigation">
+            <button id="prevPage" class="nav-btn">←</button>
+            <span id="pageIndicator">Page 1 of 1</span>
+            <button id="nextPage" class="nav-btn">→</button>
+        </div>
+    </div>
+
+    <div id="pageContainer">
+        <div id="a4Page" class="a4-page">
+            <!-- Photo placeholders will be added here dynamically -->
+        </div>
+    </div>
+
+    <!-- Photo Size Selection Modal -->
+    <div id="sizeModal" class="modal">
+        <div class="modal-content size-selection-content">
+            <h2>Select Photo Size</h2>
+            <div class="size-categories">
+                <h3>Small Sizes (Wallet/Compact)</h3>
+                <div class="size-options">
+                    <button data-size="2x2">2×2" Square</button>
+                    <button data-size="2.5x3.5-p">2.5×3.5" Portrait</button>
+                    <button data-size="2.5x3.5-l">2.5×3.5" Landscape</button>
+                    <button data-size="3.5x5-p">3.5×5" Portrait</button>
+                    <button data-size="3.5x5-l">3.5×5" Landscape</button>
+                </div>
+                
+                <h3>Common Sizes</h3>
+                <div class="size-options">
+                    <button data-size="4x6-p">4×6" Portrait</button>
+                    <button data-size="4x6-l">4×6" Landscape</button>
+                    <button data-size="5x7-p">5×7" Portrait</button>
+                    <button data-size="5x7-l">5×7" Landscape</button>
+                    <button data-size="6x8-p">6×8" Portrait</button>
+                    <button data-size="6x8-l">6×8" Landscape</button>
+                </div>
+                
+                <h3>Large Sizes</h3>
+                <div class="size-options">
+                    <button data-size="8x10-p">8×10" Portrait</button>
+                    <button data-size="8x10-l">8×10" Landscape</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Editor Modal -->
+    <div id="imageEditorModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Image</h2>
+            <div id="imageEditorPreview" class="image-container"></div>
+            <div class="image-controls">
+                <div>
+                    <label>Zoom</label>
+                    <input type="range" id="imageZoom" min="100" max="200" value="100">
+                </div>
+                <div>
+                    <label>Rotation</label>
+                    <input type="range" id="imageRotation" min="0" max="360" value="0">
+                </div>
+                <div class="image-editor-controls">
+                    <button id="fitImage">Fit to Card</button>
+                    <button id="fillImage">Fill Card</button>
+                    <button id="rotateLeft">Rotate Left</button>
+                    <button id="rotateRight">Rotate Right</button>
+                </div>
+                <div class="editor-actions">
+                    <div>
+                        <button id="undoEdit">↶ Undo</button>
+                        <button id="redoEdit">↷ Redo</button>
+                    </div>
+                    <div>
+                        <button id="cancelChanges">Cancel</button>
+                        <button id="applyChanges">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Preview Modal -->
+    <div id="printPreviewModal" class="modal">
+        <div class="modal-content">
+            <h2>Print Preview</h2>
+            <div id="printPreviewContent"></div>
+            <button id="confirmPrint">Print</button>
+            <button id="cancelPrint">Cancel</button>
+        </div>
+    </div>
+
+    <script src="command.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html> 
