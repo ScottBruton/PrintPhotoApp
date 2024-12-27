@@ -226,4 +226,19 @@ body {
 .toolbar-btn:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+@media print {
+    .photo-placeholder {
+        border: none !important;
+        background: none !important;
+    }
+    
+    .photo-placeholder:not(:has(img)) {
+        display: none !important;
+    }
+    
+    .edit-overlay {
+        display: none !important;
+    }
 } 

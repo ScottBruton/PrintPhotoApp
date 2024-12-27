@@ -55,46 +55,51 @@ class PhotoLayoutEditor {
         // Clear existing placeholders
         this.pageContainer.innerHTML = '';
         
-        let [width, height] = size.split('x').map(n => parseFloat(n));
-        const orientation = size.endsWith('-l') ? 'landscape' : 'portrait';
+        let [width, height] = size.split('x').map(n => parseInt(n));
         
-        // Swap dimensions if landscape
-        if (orientation === 'landscape') {
-            [width, height] = [height, width];
+        // Define page dimensions and spacing
+        const PAGE_WIDTH = 210;  // A4 width in mm
+        const PAGE_HEIGHT = 297; // A4 height in mm
+        const MARGIN = 5;        // 5mm margin on all sides
+        const SPACING = 10;      // 10mm spacing between cards
+        
+        // Calculate how many cards can fit in each direction
+        // Available space is page size minus margins
+        const availableWidth = PAGE_WIDTH - (2 * MARGIN);
+        const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
+        
+        // Calculate number of cards that can fit
+        const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
+        const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
+        
+        // Validate if cards fit on page
+        if (cols <= 0 || rows <= 0) {
+            alert('Selected size is too large for A4 page');
+            return;
         }
-        
-        const mmPerInch = 25.4;
-        
-        // Convert inches to mm for A4 page
-        const cardWidth = width * mmPerInch;
-        const cardHeight = height * mmPerInch;
-        
-        // Calculate how many cards can fit
-        const pageWidth = 200; // A4 width minus margins
-        const pageHeight = 287; // A4 height minus margins
-        const padding = 10; // 10mm padding
-        
-        // Calculate maximum number of cards that can fit
-        const availableWidth = pageWidth - padding;
-        const availableHeight = pageHeight - padding;
-        
-        const cols = Math.floor(availableWidth / (cardWidth + padding));
-        const rows = Math.floor(availableHeight / (cardHeight + padding));
-        
-        // Calculate centering offsets
-        const totalWidthUsed = cols * (cardWidth + padding);
-        const totalHeightUsed = rows * (cardHeight + padding);
-        const offsetX = (pageWidth - totalWidthUsed) / 2;
-        const offsetY = (pageHeight - totalHeightUsed) / 2;
-        
+
+        // Start from top-left with margin
+        const startX = MARGIN;
+        const startY = MARGIN;
+
+        // Create grid of placeholders
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'photo-placeholder';
-                placeholder.style.width = `${cardWidth}mm`;
-                placeholder.style.height = `${cardHeight}mm`;
-                placeholder.style.left = `${offsetX + col * (cardWidth + padding)}mm`;
-                placeholder.style.top = `${offsetY + row * (cardHeight + padding)}mm`;
+                
+                // Calculate position
+                const x = startX + (col * (width + SPACING));
+                const y = startY + (row * (height + SPACING));
+                
+                // Apply styles
+                Object.assign(placeholder.style, {
+                    width: `${width}mm`,
+                    height: `${height}mm`,
+                    left: `${x}mm`,
+                    top: `${y}mm`,
+                    position: 'absolute'
+                });
                 
                 this.pageContainer.appendChild(placeholder);
             }
@@ -262,13 +267,54 @@ class PhotoLayoutEditor {
         const emptyPlaceholders = pageClone.querySelectorAll('.photo-placeholder:not(:has(img))');
         emptyPlaceholders.forEach(placeholder => placeholder.remove());
         
+        // Remove edit overlays
+        pageClone.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
+        
+        // Remove placeholder borders
+        pageClone.querySelectorAll('.photo-placeholder').forEach(placeholder => {
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'none';
+        });
+        
         previewContent.innerHTML = '';
         previewContent.appendChild(pageClone);
         
         previewModal.style.display = 'block';
         
         document.getElementById('confirmPrint').onclick = () => {
-            window.print();
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Print Preview</title>
+                        <style>
+                            body { margin: 0; }
+                            .a4-page {
+                                width: 210mm;
+                                height: 297mm;
+                                position: relative;
+                                page-break-after: always;
+                            }
+                            .photo-placeholder {
+                                position: absolute;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            }
+                            img {
+                                max-width: 100%;
+                                max-height: 100%;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${pageClone.outerHTML}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+            printWindow.close();
             previewModal.style.display = 'none';
         };
         
