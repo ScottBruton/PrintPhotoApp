@@ -1,0 +1,65 @@
+/* Print-specific styles */
+@page {
+    size: A4;
+    margin: 0;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: none;
+}
+
+.a4-page {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    padding: 5mm;
+    box-sizing: border-box;
+    page-break-after: always;
+    background-color: white;
+}
+
+.photo-placeholder {
+    position: absolute !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.photo-placeholder img {
+    position: absolute;
+    max-width: none;
+    max-height: none;
+    transform-origin: center;
+}
+
+/* Preview-specific styles */
+@media screen {
+    body {
+        background: rgb(204,204,204);
+    }
+    
+    .a4-page {
+        margin: 0 auto;
+        box-shadow: 0 0 0.5cm rgba(0,0,0,0.5);
+    }
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        background: none;
+    }
+    
+    .a4-page {
+        margin: 0;
+        box-shadow: none;
+    }
+    
+    .photo-placeholder {
+        border: none !important;
+        background: none !important;
+    }
+} 

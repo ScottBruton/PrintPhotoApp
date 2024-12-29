@@ -1,0 +1,9 @@
+[2024-12-29T10:41:45.616Z] Print: Received print-preview request
+[2024-12-29T10:41:45.636Z] Print: Setting up print window...
+[2024-12-29T10:41:45.643Z] Print: Loading URL length: 337135
+[2024-12-29T10:41:46.083Z] Print: Window finished loading content
+[2024-12-29T10:41:46.133Z] Print: Generated PDF preview at: C:\Users\bruto\AppData\Local\Temp\print-preview-1735468906126.pdf
+[2024-12-29T10:42:18.679Z] Print: Print callback received: {
+  "success": false,
+  "errorType": ""
+}

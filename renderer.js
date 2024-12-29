@@ -1,3 +1,18 @@
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('Renderer Error:', {
+        message,
+        source,
+        lineno,
+        colno,
+        error: error?.stack || error
+    });
+};
+
+// Add this for promise errors
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled Promise Rejection:', event.reason);
+});
+
 class PhotoLayoutEditor {
     constructor() {
         this.pages = [{ id: 1, size: null, photos: [] }];
@@ -257,70 +272,16 @@ class PhotoLayoutEditor {
     }
 
     showPrintPreview() {
-        const previewModal = document.getElementById('printPreviewModal');
-        const previewContent = document.getElementById('printPreviewContent');
-        
-        // Clone current page for preview
-        const pageClone = this.pageContainer.cloneNode(true);
-        
-        // Remove empty placeholders
-        const emptyPlaceholders = pageClone.querySelectorAll('.photo-placeholder:not(:has(img))');
-        emptyPlaceholders.forEach(placeholder => placeholder.remove());
-        
-        // Remove edit overlays
-        pageClone.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
-        
-        // Remove placeholder borders
-        pageClone.querySelectorAll('.photo-placeholder').forEach(placeholder => {
-            placeholder.style.border = 'none';
-            placeholder.style.background = 'none';
-        });
-        
-        previewContent.innerHTML = '';
-        previewContent.appendChild(pageClone);
-        
-        previewModal.style.display = 'block';
-        
-        document.getElementById('confirmPrint').onclick = () => {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Print Preview</title>
-                        <style>
-                            body { margin: 0; }
-                            .a4-page {
-                                width: 210mm;
-                                height: 297mm;
-                                position: relative;
-                                page-break-after: always;
-                            }
-                            .photo-placeholder {
-                                position: absolute;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            }
-                            img {
-                                max-width: 100%;
-                                max-height: 100%;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        ${pageClone.outerHTML}
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-            printWindow.close();
-            previewModal.style.display = 'none';
-        };
-        
-        document.getElementById('cancelPrint').onclick = () => {
-            previewModal.style.display = 'none';
-        };
+        const printManager = new PrintManager();
+        printManager.showPreview(this.pageContainer)
+            .then(success => {
+                if (!success) {
+                    console.log('Print cancelled');
+                }
+            })
+            .catch(error => {
+                console.error('Print error:', error);
+            });
     }
 
     // Enhanced image handling with editing features
