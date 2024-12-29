@@ -1,3 +1,18 @@
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('Renderer Error:', {
+        message,
+        source,
+        lineno,
+        colno,
+        error: error?.stack || error
+    });
+};
+
+// Add this for promise errors
+window.addEventListener('unhandledrejection', function(event) {
+    console.error('Unhandled Promise Rejection:', event.reason);
+});
+
 class PhotoLayoutEditor {
     constructor() {
         this.pages = [{ id: 1, size: null, photos: [] }];
@@ -57,27 +72,19 @@ class PhotoLayoutEditor {
         
         let [width, height] = size.split('x').map(n => parseInt(n));
         
-        // Define page dimensions and spacing
+        // Define page dimensions and spacing in millimeters
         const PAGE_WIDTH = 210;  // A4 width in mm
         const PAGE_HEIGHT = 297; // A4 height in mm
-        const MARGIN = 5;        // 5mm margin on all sides
-        const SPACING = 10;      // 10mm spacing between cards
+        const MARGIN = 5;        // 5mm margin
+        const SPACING = 10;      // 10mm spacing
         
-        // Calculate how many cards can fit in each direction
-        // Available space is page size minus margins
+        // Calculate how many cards can fit
         const availableWidth = PAGE_WIDTH - (2 * MARGIN);
         const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
         
-        // Calculate number of cards that can fit
         const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
         const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
         
-        // Validate if cards fit on page
-        if (cols <= 0 || rows <= 0) {
-            alert('Selected size is too large for A4 page');
-            return;
-        }
-
         // Start from top-left with margin
         const startX = MARGIN;
         const startY = MARGIN;
@@ -88,11 +95,11 @@ class PhotoLayoutEditor {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'photo-placeholder';
                 
-                // Calculate position
+                // Calculate position in mm
                 const x = startX + (col * (width + SPACING));
                 const y = startY + (row * (height + SPACING));
                 
-                // Apply styles
+                // Apply styles using mm units
                 Object.assign(placeholder.style, {
                     width: `${width}mm`,
                     height: `${height}mm`,
@@ -263,59 +270,117 @@ class PhotoLayoutEditor {
         // Clone current page for preview
         const pageClone = this.pageContainer.cloneNode(true);
         
-        // Remove empty placeholders
-        const emptyPlaceholders = pageClone.querySelectorAll('.photo-placeholder:not(:has(img))');
-        emptyPlaceholders.forEach(placeholder => placeholder.remove());
-        
-        // Remove edit overlays
+        // Clean up the preview content but preserve styles
+        pageClone.querySelectorAll('.photo-placeholder:not(:has(img))').forEach(placeholder => placeholder.remove());
         pageClone.querySelectorAll('.edit-overlay').forEach(overlay => overlay.remove());
-        
-        // Remove placeholder borders
-        pageClone.querySelectorAll('.photo-placeholder').forEach(placeholder => {
-            placeholder.style.border = 'none';
-            placeholder.style.background = 'none';
-        });
         
         previewContent.innerHTML = '';
         previewContent.appendChild(pageClone);
-        
         previewModal.style.display = 'block';
         
-        document.getElementById('confirmPrint').onclick = () => {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
+        document.getElementById('confirmPrint').onclick = async () => {
+            console.log('Renderer: Print button clicked');
+            previewModal.style.display = 'none';
+            
+            try {
+                // Get computed styles for all elements
+                const placeholders = pageClone.querySelectorAll('.photo-placeholder');
+                placeholders.forEach(placeholder => {
+                    const computedStyle = window.getComputedStyle(placeholder);
+                    placeholder.style.width = computedStyle.width;
+                    placeholder.style.height = computedStyle.height;
+                    placeholder.style.left = computedStyle.left;
+                    placeholder.style.top = computedStyle.top;
+                    
+                    const img = placeholder.querySelector('img');
+                    if (img) {
+                        const imgComputedStyle = window.getComputedStyle(img);
+                        // Preserve all transforms and positioning
+                        img.style.transform = imgComputedStyle.transform;
+                        img.style.width = imgComputedStyle.width;
+                        img.style.height = imgComputedStyle.height;
+                        img.style.objectFit = imgComputedStyle.objectFit;
+                        img.style.position = 'absolute';
+                    }
+                });
+
+                console.log('Renderer: Preparing print HTML...');
+                const printHTML = `
+                    <!DOCTYPE html>
+                    <html>
                     <head>
                         <title>Print Preview</title>
+                        <meta charset="utf-8">
                         <style>
-                            body { margin: 0; }
+                            @page {
+                                size: A4;
+                                margin: 0;
+                            }
+                            
+                            html, body {
+                                margin: 0;
+                                padding: 0;
+                                width: 210mm;
+                                height: 297mm;
+                            }
+                            
                             .a4-page {
                                 width: 210mm;
                                 height: 297mm;
                                 position: relative;
-                                page-break-after: always;
+                                padding: 5mm;
+                                box-sizing: border-box;
+                                background-color: white;
                             }
+                            
                             .photo-placeholder {
-                                position: absolute;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
+                                position: absolute !important;
+                                overflow: hidden;
                             }
-                            img {
-                                max-width: 100%;
-                                max-height: 100%;
+                            
+                            .photo-placeholder img {
+                                position: absolute !important;
+                                transform-origin: center !important;
+                            }
+
+                            @media screen {
+                                body {
+                                    background: rgb(204,204,204);
+                                }
+                                .a4-page {
+                                    background: white;
+                                    margin: 0 auto;
+                                    box-shadow: 0 0 0.5cm rgba(0,0,0,0.5);
+                                }
+                            }
+
+                            @media print {
+                                body {
+                                    background: none;
+                                }
+                                .a4-page {
+                                    margin: 0;
+                                    box-shadow: none;
+                                }
                             }
                         </style>
                     </head>
                     <body>
                         ${pageClone.outerHTML}
                     </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-            printWindow.close();
-            previewModal.style.display = 'none';
+                    </html>
+                `.trim();
+
+                console.log('Renderer: Sending print request to main process...');
+                const success = await window.electron.print.preview(printHTML);
+                console.log('Renderer: Print result:', success);
+                
+                if (!success) {
+                    console.error('Renderer: Printing failed');
+                }
+            } catch (error) {
+                console.error('Renderer: Print error:', error);
+            }
         };
         
         document.getElementById('cancelPrint').onclick = () => {

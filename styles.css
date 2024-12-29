@@ -46,26 +46,32 @@ body {
     height: 297mm;
     background-color: white;
     margin: 0 auto;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
     position: relative;
     padding: 5mm;
+    box-sizing: border-box;
+}
+
+@media screen and (min-width: 210mm) {
+    .a4-page {
+        box-shadow: 0 0 0.5cm rgba(0,0,0,0.5);
+    }
 }
 
 .photo-placeholder {
     position: absolute;
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    position: relative;
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
 }
 
 .photo-placeholder img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    position: absolute;
+    max-width: none;
+    max-height: none;
+    transform-origin: center;
 }
 
 .photo-placeholder .edit-overlay {
@@ -229,16 +235,44 @@ body {
 }
 
 @media print {
+    body * {
+        visibility: hidden;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .print-container,
+    .print-container * {
+        visibility: visible;
+        position: relative;
+    }
+    
+    .print-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 210mm;
+        height: 297mm;
+    }
+    
+    .a4-page {
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+    
     .photo-placeholder {
         border: none !important;
         background: none !important;
     }
     
-    .photo-placeholder:not(:has(img)) {
-        display: none !important;
+    .photo-placeholder img {
+        max-width: 100% !important;
+        max-height: 100% !important;
     }
     
-    .edit-overlay {
+    .edit-overlay,
+    .modal {
         display: none !important;
     }
 } 
