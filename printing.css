@@ -9,6 +9,7 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    overflow: hidden;
 }
 
 .print-dialog {
@@ -19,20 +20,41 @@
     height: 100%;
     background: #f5f5f5;
     color: #333;
+    overflow: hidden;
 }
 
 .print-settings {
-    background: white;
+    background: rgb(255, 255, 255);
     padding: 20px;
     border-right: 1px solid #ddd;
     overflow-y: auto;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    height: 100%; /* Or a fixed height, e.g., height: 500px; */
+    max-height: 100vh; /* Prevent it from exceeding the viewport height */
+}
+
+.print-settings::-webkit-scrollbar {
+    width: 8px;
+}
+
+.print-settings::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.print-settings::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.print-settings::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .settings-section {
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid #090909;
 }
 
 .section-header {
@@ -145,13 +167,35 @@
     padding: 20px;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
+}
+
+.preview-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.preview-content::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 .preview-content .a4-page {
     background: white;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    transform-origin: top center;
+    transform-origin: center;
+    max-width: 95%;
+    max-height: 95%;
+    margin: auto;
+    transform: scale(1);
 }
 
 /* Buttons and controls */
@@ -172,4 +216,23 @@
 #zoomLevel {
     min-width: 60px;
     text-align: center;
+}
+
+.quality-settings {
+    margin: 10px 0;
+}
+
+.quality-select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+}
+
+.quality-select:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
 } 

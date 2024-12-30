@@ -74,11 +74,17 @@ ipcMain.handle('get-printers', async (event) => {
                 status: 0
             }));
 
-        // Add PDF printer option
+        // Add PDF printer option and Test Printer
         const allPrinters = [
             {
                 name: 'Save as PDF',
                 displayName: 'Save as PDF',
+                isDefault: false,
+                status: 0
+            },
+            {
+                name: 'Test Printer',
+                displayName: 'Test Printer (Debug)',
                 isDefault: false,
                 status: 0
             },
@@ -110,32 +116,51 @@ ipcMain.handle('print', async (event, content, settings) => {
             }
         });
 
-        await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`);
+        // Create a temporary HTML file
+        const tempPath = path.join(app.getPath('temp'), 'print-content.html');
+        fs.writeFileSync(tempPath, content);
+        await printWindow.loadFile(tempPath);
 
         // Handle PDF printing
         if (settings.printer === 'Save as PDF') {
+            // Close print window before showing save dialog
+            printWindow.close();
+            
             const { filePath } = await dialog.showSaveDialog({
                 title: 'Save PDF',
                 defaultPath: path.join(app.getPath('documents'), 'print-output.pdf'),
                 filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
             });
 
-            if (filePath) {
-                const pdfData = await printWindow.webContents.printToPDF({
-                    printBackground: true,
-                    landscape: settings.layout === 'landscape',
-                    pageRanges: settings.pages === 'custom' ? settings.pageRanges : undefined,
-                    margins: {
-                        marginType: 'none'
-                    }
-                });
-
-                fs.writeFileSync(filePath, pdfData);
-                printWindow.close();
-                return true;
+            if (!filePath) {
+                return false;
             }
-            printWindow.close();
-            return false;
+
+            // Create a new window for PDF generation
+            const pdfWindow = new BrowserWindow({
+                show: false,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
+
+            await pdfWindow.loadFile(tempPath);
+            const pdfData = await pdfWindow.webContents.printToPDF({
+                printBackground: true,
+                landscape: settings.layout === 'landscape',
+                pageRanges: settings.pages === 'custom' ? settings.pageRanges : undefined,
+                margins: {
+                    marginType: 'none'
+                },
+                dpi: settings.quality || 600,
+                resolution: settings.quality || 600
+            });
+
+            fs.writeFileSync(filePath, pdfData);
+            pdfWindow.close();
+            fs.unlinkSync(tempPath);
+            return true;
         }
 
         // Regular printer
@@ -145,10 +170,20 @@ ipcMain.handle('print', async (event, content, settings) => {
             deviceName: settings.printer,
             copies: settings.copies,
             landscape: settings.layout === 'landscape',
-            pageRanges: settings.pages === 'custom' ? settings.pageRanges : undefined
+            pageRanges: settings.pages === 'custom' ? settings.pageRanges : undefined,
+            dpi: settings.quality || 600,
+            printOptions: {
+                quality: settings.quality || 600,
+                resolution: settings.quality || 600,
+                dpi: {
+                    horizontal: settings.quality || 600,
+                    vertical: settings.quality || 600
+                }
+            }
         });
 
         printWindow.close();
+        fs.unlinkSync(tempPath);
         return success;
     } catch (error) {
         console.error('Print error:', error);

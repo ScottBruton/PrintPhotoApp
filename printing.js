@@ -83,6 +83,18 @@ class PrintManager {
                         </div>
                     </div>
 
+                    <!-- Quality -->
+                    <div class="settings-section">
+                        <h3>Quality</h3>
+                        <div class="quality-settings">
+                            <select id="printQuality" class="quality-select">
+                                <option value="600">High Quality (600 DPI)</option>
+                                <option value="300">Normal (300 DPI)</option>
+                                <option value="150">Draft (150 DPI)</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Pages -->
                     <div class="settings-section">
                         <h3>Pages</h3>
@@ -97,13 +109,15 @@ class PrintManager {
                             </label>
                             <input type="text" class="page-ranges" placeholder="e.g. 1-5, 8, 11-13" disabled>
                         </div>
-                    </div>
 
-                    <!-- Action Buttons -->
+                        <!-- Action Buttons -->
                     <div class="dialog-actions">
                         <button class="cancel-btn" id="cancelPrint">Cancel</button>
                         <button class="print-btn" id="confirmPrint">Print</button>
                     </div>
+                    </div>
+
+                    
                 </div>
 
                 <div class="print-preview">
@@ -125,6 +139,9 @@ class PrintManager {
 
         // Add to document
         document.body.appendChild(this.dialog);
+
+        // Initialize preview
+        this.initializePreview();
     }
 
     setupEventListeners() {
@@ -215,7 +232,25 @@ class PrintManager {
     zoom(delta) {
         this.currentSettings.zoom = Math.max(25, Math.min(200, this.currentSettings.zoom + delta));
         this.dialog.querySelector('#zoomLevel').textContent = `${this.currentSettings.zoom}%`;
-        this.previewContent.style.transform = `scale(${this.currentSettings.zoom / 100})`;
+        
+        // Calculate scale based on container size
+        const previewContent = this.dialog.querySelector('.preview-content');
+        const page = this.dialog.querySelector('.a4-page');
+        
+        if (page) {
+            const scale = (this.currentSettings.zoom / 100) * 0.8; // Base scale is 0.8
+            page.style.setProperty('--preview-scale', scale);
+        }
+    }
+
+    initializePreview() {
+        const previewContent = this.dialog.querySelector('.preview-content');
+        const page = previewContent.querySelector('.a4-page');
+        
+        if (page) {
+            // Set initial scale to fit container
+            page.style.setProperty('--preview-scale', '0.8');
+        }
     }
 
     async executePrint() {
@@ -226,19 +261,24 @@ class PrintManager {
             layout: this.dialog.querySelector('input[name="layout"]:checked').value,
             pages: this.dialog.querySelector('input[name="pages"]:checked').value,
             pageRanges: this.dialog.querySelector('.page-ranges').value,
+            quality: parseInt(this.dialog.querySelector('#printQuality').value)
         };
 
-        // Disable copies for PDF
-        if (settings.printer === 'Save as PDF') {
-            this.dialog.querySelector('#copiesInput').disabled = true;
-            settings.copies = 1;
-        } else {
-            this.dialog.querySelector('#copiesInput').disabled = false;
-        }
+        // Close the print dialog before sending to print
+        this.dialog.style.display = 'none';
 
         // Send to print
         const success = await window.electron.print(this.previewContent.innerHTML, settings);
-        this.closeDialog(success);
+        
+        // Only call closeDialog if print was unsuccessful (dialog was already closed)
+        if (!success) {
+            this.closeDialog(success);
+        } else {
+            // Just resolve the promise
+            if (this.resolvePromise) {
+                this.resolvePromise(success);
+            }
+        }
     }
 
     closeDialog(success) {
