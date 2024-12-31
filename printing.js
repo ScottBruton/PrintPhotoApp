@@ -12,6 +12,11 @@ class PrintManager {
             zoom: 100
         };
         this.printerList = [];
+        this.toastContainer = null;
+        
+        // Initialize toast container immediately
+        this.setupToastContainer();
+        console.log('Toast container initialized:', this.toastContainer);  // Debug log
     }
 
     async showPrintDialog(contentToprint) {
@@ -109,6 +114,25 @@ class PrintManager {
                             </label>
                             <input type="text" class="page-ranges" placeholder="e.g. 1-5, 8, 11-13" disabled>
                         </div>
+
+                    <!-- Paper Type -->
+                    <div class="settings-section">
+                        <h3>Paper Type</h3>
+                        <div class="paper-type-options">
+                            <label>
+                                <input type="radio" name="paperType" value="plain" checked>
+                                <span>Plain Paper</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="paperType" value="glossy">
+                                <span>Gloss Paper</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="paperType" value="photo">
+                                <span>Photo Paper</span>
+                            </label>
+                        </div>
+                    </div>
 
                         <!-- Action Buttons -->
                     <div class="dialog-actions">
@@ -253,6 +277,29 @@ class PrintManager {
         }
     }
 
+    setupToastContainer() {
+        if (!this.toastContainer) {  // Check if it already exists
+            this.toastContainer = document.createElement('div');
+            this.toastContainer.className = 'toast-container';
+            document.body.appendChild(this.toastContainer);
+            console.log('Created new toast container');  // Debug log
+        }
+    }
+
+    showToast(message) {
+        console.log('Creating toast with message:', message);  // Debug log
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        console.log('Toast container:', this.toastContainer);  // Debug log
+        this.toastContainer.appendChild(toast);
+
+        // Remove the toast after animation
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
     async executePrint() {
         // Gather all settings
         const settings = {
@@ -261,16 +308,27 @@ class PrintManager {
             layout: this.dialog.querySelector('input[name="layout"]:checked').value,
             pages: this.dialog.querySelector('input[name="pages"]:checked').value,
             pageRanges: this.dialog.querySelector('.page-ranges').value,
-            quality: parseInt(this.dialog.querySelector('#printQuality').value)
+            quality: parseInt(this.dialog.querySelector('#printQuality').value),
+            paperType: this.dialog.querySelector('input[name="paperType"]:checked').value
         };
+
+        console.log('Print settings:', settings);  // Debug log
 
         // Close the print dialog before sending to print
         this.dialog.style.display = 'none';
 
         // Send to print
         const success = await window.electron.print(this.previewContent.innerHTML, settings);
+        console.log('Print success:', success);  // Debug log
+        console.log('Printer type:', settings.printer);  // Debug log
         
-        // Only call closeDialog if print was unsuccessful (dialog was already closed)
+        // Show toast for successful print jobs (including Test Printer)
+        if (success && settings.printer !== 'Save as PDF') {
+            console.log('Showing toast message');  // Debug log
+            this.showToast(`Successfully sent to printer: ${settings.printer}`);
+        }
+
+        // Only call closeDialog if print was unsuccessful
         if (!success) {
             this.closeDialog(success);
         } else {
@@ -291,3 +349,9 @@ class PrintManager {
 
 // Export the PrintManager
 window.PrintManager = PrintManager; 
+
+// Add this right after the PrintManager class definition but before the export
+window.testToast = function() {
+    const manager = new PrintManager();
+    manager.showToast('Test Message');
+} 

@@ -121,6 +121,31 @@ ipcMain.handle('print', async (event, content, settings) => {
         fs.writeFileSync(tempPath, content);
         await printWindow.loadFile(tempPath);
 
+        // Handle Test Printer
+        if (settings.printer === 'Test Printer') {
+            console.log('\n=== TEST PRINTER DEBUG INFO ===');
+            console.log('Print settings:', {
+                printer: settings.printer,
+                copies: settings.copies,
+                layout: settings.layout,
+                pages: settings.pages,
+                pageRanges: settings.pageRanges,
+                quality: settings.quality,
+                paperType: settings.paperType
+            });
+            console.log('Paper size: A4');
+            console.log('DPI:', settings.quality);
+            console.log('Paper Type:', settings.paperType);
+            console.log('=== END DEBUG INFO ===\n');
+
+            // Simulate printing delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            printWindow.close();
+            fs.unlinkSync(tempPath);
+            return true;  // Return true to indicate success
+        }
+
         // Handle PDF printing
         if (settings.printer === 'Save as PDF') {
             // Close print window before showing save dialog
@@ -178,7 +203,8 @@ ipcMain.handle('print', async (event, content, settings) => {
                 dpi: {
                     horizontal: settings.quality || 600,
                     vertical: settings.quality || 600
-                }
+                },
+                mediaType: settings.paperType
             }
         });
 

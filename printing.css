@@ -235,4 +235,76 @@
     outline: none;
     border-color: #4CAF50;
     box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
+}
+
+/* Add these styles for the toast */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+    pointer-events: none;
+}
+
+.toast {
+    background-color: #4CAF50;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 4px;
+    margin: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    min-width: 200px;
+    opacity: 1;
+    pointer-events: auto;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-out 2.5s forwards;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* Paper type options styling */
+.paper-type-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.paper-type-options label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.paper-type-options input[type="radio"] {
+    margin-right: 8px;
+}
+
+/* Match the style of other radio options */
+.paper-type-options label {
+    padding: 4px 0;
+}
+
+.paper-type-options input[type="radio"]:checked + span {
+    color: #007bff;
 } 
