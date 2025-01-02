@@ -60,20 +60,25 @@
                     <button data-size="254x203-l">254×203mm Landscape</button>
                 </div>
 
-                <h3>Custom Size</h3>
-                <div class="custom-size-section">
+                <div class="custom-size-header">
+                    <h3>
+                        <input type="checkbox" id="enableCustomSize">
+                        Custom Size
+                    </h3>
+                </div>
+                <div class="custom-size-section" id="customSizeSection">
                     <div class="custom-size-inputs">
                         <div class="input-group">
                             <label>Width (mm)</label>
-                            <input type="number" id="customWidth" min="10" max="297" value="100">
+                            <input type="number" id="customWidth" min="10" max="297" value="100" disabled>
                         </div>
                         <div class="input-group">
                             <label>Height (mm)</label>
-                            <input type="number" id="customHeight" min="10" max="297" value="150">
+                            <input type="number" id="customHeight" min="10" max="297" value="150" disabled>
                         </div>
                     </div>
                     <div class="size-modal-actions">
-                        <button id="applyCustomSize" class="apply-size-btn">Apply Custom Size</button>
+                        <button id="applyCustomSize" class="apply-size-btn" disabled>Apply Custom Size</button>
                     </div>
                 </div>
             </div>

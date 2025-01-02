@@ -130,13 +130,54 @@ class PhotoLayoutEditor {
         let selectedSize = null;
         const applyToPageBtn = document.getElementById('applyToPage');
 
-        // Handle size selection buttons
+        // Handle custom size checkbox
+        const customSizeCheckbox = document.getElementById('enableCustomSize');
+        const customSizeSection = document.getElementById('customSizeSection');
+        const customWidthInput = document.getElementById('customWidth');
+        const customHeightInput = document.getElementById('customHeight');
+        const applyCustomSizeBtn = document.getElementById('applyCustomSize');
+
+        customSizeCheckbox.addEventListener('change', (e) => {
+            // Enable/disable custom size section
+            customSizeSection.classList.toggle('enabled', e.target.checked);
+            customWidthInput.disabled = !e.target.checked;
+            customHeightInput.disabled = !e.target.checked;
+            applyCustomSizeBtn.disabled = !e.target.checked;
+
+            if (e.target.checked) {
+                // Unselect any selected preset size
+                document.querySelectorAll('.size-options button').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                // Disable the main Apply To Page button until custom size is applied
+                document.getElementById('applyToPage').disabled = true;
+                selectedSize = null;
+            }
+        });
+
+        // Update custom size handling
+        document.getElementById('applyCustomSize').addEventListener('click', () => {
+            const width = customWidthInput.value;
+            const height = customHeightInput.value;
+            if (width && height) {
+                selectedSize = `${width}x${height}`;
+                document.getElementById('applyToPage').disabled = false;
+            }
+        });
+
+        // Update preset size button handling
         document.querySelectorAll('.size-options button').forEach(button => {
             button.addEventListener('click', (e) => {
+                // Uncheck custom size checkbox if a preset is selected
+                customSizeCheckbox.checked = false;
+                customSizeSection.classList.remove('enabled');
+                customWidthInput.disabled = true;
+                customHeightInput.disabled = true;
+                applyCustomSizeBtn.disabled = true;
+
                 // Update selected size
                 selectedSize = e.target.dataset.size;
-                // Enable the Apply To Page button
-                applyToPageBtn.disabled = false;
+                document.getElementById('applyToPage').disabled = false;
                 
                 // Highlight the selected button
                 document.querySelectorAll('.size-options button').forEach(btn => {
@@ -144,29 +185,6 @@ class PhotoLayoutEditor {
                 });
                 e.target.classList.add('selected');
             });
-        });
-
-        // Handle custom size inputs
-        const validateCustomSize = () => {
-            const width = document.getElementById('customWidth').value;
-            const height = document.getElementById('customHeight').value;
-            if (width && height) {
-                selectedSize = `${width}x${height}`;
-                applyToPageBtn.disabled = false;
-            }
-        };
-
-        document.getElementById('customWidth').addEventListener('input', validateCustomSize);
-        document.getElementById('customHeight').addEventListener('input', validateCustomSize);
-
-        // Handle Apply Custom Size button
-        document.getElementById('applyCustomSize').addEventListener('click', () => {
-            const width = document.getElementById('customWidth').value;
-            const height = document.getElementById('customHeight').value;
-            if (width && height) {
-                selectedSize = `${width}x${height}`;
-                applyToPageBtn.disabled = false;
-            }
         });
 
         // Handle Apply To Page button
