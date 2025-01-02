@@ -5,6 +5,15 @@ const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
+try {
+    if (process.argv.includes('--dev-reload')) {
+        require('electron-reloader')(module, {
+            debug: true,
+            watchRenderer: true
+        });
+    }
+} catch (_) { console.log('Error loading electron-reloader'); }
+
 // Store mainWindow reference
 let mainWindow = null;
 

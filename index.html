@@ -59,6 +59,26 @@
                     <button data-size="203x254-p">203×254mm Portrait</button>
                     <button data-size="254x203-l">254×203mm Landscape</button>
                 </div>
+
+                <h3>Custom Size</h3>
+                <div class="custom-size-section">
+                    <div class="custom-size-inputs">
+                        <div class="input-group">
+                            <label>Width (mm)</label>
+                            <input type="number" id="customWidth" min="10" max="297" value="100">
+                        </div>
+                        <div class="input-group">
+                            <label>Height (mm)</label>
+                            <input type="number" id="customHeight" min="10" max="297" value="150">
+                        </div>
+                    </div>
+                    <div class="size-modal-actions">
+                        <button id="applyCustomSize" class="apply-size-btn">Apply Custom Size</button>
+                    </div>
+                </div>
+            </div>
+            <div class="size-modal-footer">
+                <button id="applyToPage" class="apply-to-page-btn" disabled>Apply To Page</button>
             </div>
         </div>
     </div>

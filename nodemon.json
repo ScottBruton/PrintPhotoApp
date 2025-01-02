@@ -1,0 +1,14 @@
+{
+  "watch": [
+    "*.js",
+    "*.html",
+    "*.css"
+  ],
+  "ignore": [
+    "node_modules",
+    "dist"
+  ],
+  "env": {
+    "NODE_ENV": "development"
+  }
+} 
