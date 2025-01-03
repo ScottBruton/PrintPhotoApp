@@ -70,11 +70,13 @@
                     <div class="custom-size-inputs">
                         <div class="input-group">
                             <label>Width (mm)</label>
-                            <input type="number" id="customWidth" min="10" max="297" value="100" disabled>
+                            <input type="number" id="customWidth" value="100" disabled>
+                            <div class="validation-message" id="widthValidation">Width must be between 1 and 210mm</div>
                         </div>
                         <div class="input-group">
                             <label>Height (mm)</label>
-                            <input type="number" id="customHeight" min="10" max="297" value="150" disabled>
+                            <input type="number" id="customHeight" value="150" disabled>
+                            <div class="validation-message" id="heightValidation">Height must be between 1 and 297mm</div>
                         </div>
                     </div>
                     <div class="size-modal-actions">

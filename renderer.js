@@ -137,29 +137,71 @@ class PhotoLayoutEditor {
         const customHeightInput = document.getElementById('customHeight');
         const applyCustomSizeBtn = document.getElementById('applyCustomSize');
 
+        // Handle custom size validation
+        const validateInput = (input, min, max, validationMsg) => {
+            // Allow empty or partial input
+            if (input.value === '' || input.value === '-') {
+                input.classList.add('invalid');
+                validationMsg.classList.add('show');
+                applyCustomSizeBtn.disabled = true;
+                return false;
+            }
+
+            const value = parseInt(input.value);
+            const isValid = !isNaN(value) && value >= min && value <= max;
+            
+            input.classList.toggle('invalid', !isValid);
+            validationMsg.classList.toggle('show', !isValid);
+            
+            // Check both inputs for validity
+            const widthInput = document.getElementById('customWidth');
+            const heightInput = document.getElementById('customHeight');
+            
+            // Check if both inputs have valid values
+            const widthValue = parseInt(widthInput.value);
+            const heightValue = parseInt(heightInput.value);
+            
+            const widthValid = !isNaN(widthValue) && widthValue >= 1 && widthValue <= 210;
+            const heightValid = !isNaN(heightValue) && heightValue >= 1 && heightValue <= 297;
+            
+            // Enable button only if BOTH inputs are valid
+            applyCustomSizeBtn.disabled = !(widthValid && heightValid);
+            
+            return isValid;
+        };
+
+        // Update the event listeners with immediate validation
+        customWidthInput.addEventListener('input', (e) => {
+            validateInput(e.target, 1, 210, document.getElementById('widthValidation'));
+        });
+
+        customHeightInput.addEventListener('input', (e) => {
+            validateInput(e.target, 1, 297, document.getElementById('heightValidation'));
+        });
+
+        // Update custom size checkbox handler
         customSizeCheckbox.addEventListener('change', (e) => {
-            // Enable/disable custom size section
             customSizeSection.classList.toggle('enabled', e.target.checked);
             customWidthInput.disabled = !e.target.checked;
             customHeightInput.disabled = !e.target.checked;
-            applyCustomSizeBtn.disabled = !e.target.checked;
-
+            
             if (e.target.checked) {
-                // Unselect any selected preset size
-                document.querySelectorAll('.size-options button').forEach(btn => {
-                    btn.classList.remove('selected');
-                });
-                // Disable the main Apply To Page button until custom size is applied
-                document.getElementById('applyToPage').disabled = true;
-                selectedSize = null;
+                // Validate both inputs immediately when enabling
+                validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation'));
+                validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'));
+            } else {
+                // Disable the button when unchecking
+                applyCustomSizeBtn.disabled = true;
             }
         });
 
-        // Update custom size handling
+        // Update Apply Custom Size handler
         document.getElementById('applyCustomSize').addEventListener('click', () => {
             const width = customWidthInput.value;
             const height = customHeightInput.value;
-            if (width && height) {
+            
+            if (validateInput(customWidthInput, 1, 210, widthValidation) && 
+                validateInput(customHeightInput, 1, 297, heightValidation)) {
                 selectedSize = `${width}x${height}`;
                 document.getElementById('applyToPage').disabled = false;
             }
@@ -214,15 +256,6 @@ class PhotoLayoutEditor {
         document.getElementById('printPreview').addEventListener('click', () => this.showPrintPreview());
         document.getElementById('undo').addEventListener('click', () => this.undo());
         document.getElementById('redo').addEventListener('click', () => this.redo());
-
-        // Add input validation
-        ['customWidth', 'customHeight'].forEach(id => {
-            document.getElementById(id).addEventListener('input', (e) => {
-                let value = parseInt(e.target.value);
-                if (value < 10) e.target.value = 10;
-                if (value > 297) e.target.value = 297;
-            });
-        });
     }
 
     setPageSize(size) {

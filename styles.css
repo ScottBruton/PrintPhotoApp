@@ -370,4 +370,21 @@ body {
 .custom-size-section.enabled {
     opacity: 1;
     pointer-events: auto;
+}
+
+/* Add these styles for custom size validation */
+.input-group input.invalid {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.validation-message {
+    color: #dc3545;
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+}
+
+.validation-message.show {
+    display: block;
 } 
