@@ -1,13 +1,20 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electron', {
-    invoke: (channel, data) => {
-        return ipcRenderer.invoke(channel, data);
-    },
-    getPrinters: () => ipcRenderer.invoke('get-printers'),
-    print: (content, settings) => ipcRenderer.invoke('print', content, settings),
-    log: {
-        error: (message) => ipcRenderer.invoke('log-error', message)
-    },
-    savePDF: (data) => ipcRenderer.invoke('save-pdf', data)
-}); 
+contextBridge.exposeInMainWorld("electron", {
+  invoke: (channel, data) => {
+    return ipcRenderer.invoke(channel, data);
+  },
+  getPrinters: () => ipcRenderer.invoke("get-printers"),
+  print: (content, settings) => ipcRenderer.invoke("print", content, settings),
+  log: {
+    error: (message) => ipcRenderer.invoke("log-error", message),
+  },
+  savePDF: (data) => ipcRenderer.invoke("save-pdf", data),
+  winPrint: {
+    getPrinters: () => ipcRenderer.invoke("win-get-printers"),
+    setDefaultPrinter: (printerName) =>
+      ipcRenderer.invoke("win-set-default-printer", printerName),
+    printFile: (filePath, printerName) =>
+      ipcRenderer.invoke("win-print-file", { filePath, printerName }),
+  },
+});
