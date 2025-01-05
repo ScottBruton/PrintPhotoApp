@@ -647,9 +647,110 @@ class PhotoLayoutEditor {
     async loadLayout() {
         const layoutData = await window.electron.invoke('load-layout');
         if (layoutData) {
+            // Load the session state
             this.sessionManager.loadSessionState(layoutData);
+            
+            // Update the page indicator
             this.updatePageIndicator();
-            this.createPhotoPlaceholders(this.sessionManager.sessionData.pages[this.sessionManager.sessionData.currentPage].pageSize, this.sessionManager.sessionData.pages[this.sessionManager.sessionData.currentPage]);
+            
+            // Get current page data
+            const currentPage = this.sessionManager.getPage(this.sessionManager.sessionData.currentPage + 1);
+            if (currentPage && currentPage.pageSize) {
+                // Clear the current page container
+                this.pageContainer.innerHTML = '';
+                
+                // Recreate the layout with the page's size
+                const [width, height] = currentPage.pageSize.split('x').map(n => parseInt(n));
+                const PAGE_WIDTH = 210;
+                const PAGE_HEIGHT = 297;
+                const MARGIN = 5;
+                const SPACING = 10;
+                
+                const availableWidth = PAGE_WIDTH - (2 * MARGIN);
+                const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
+                
+                const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
+                const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
+                
+                // Recreate each card and restore its image if it exists
+                currentPage.cards.forEach(card => {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'photo-placeholder';
+                    placeholder.id = card.id;
+                    
+                    Object.assign(placeholder.style, {
+                        width: `${card.size.width}mm`,
+                        height: `${card.size.height}mm`,
+                        left: `${card.position.x}mm`,
+                        top: `${card.position.y}mm`,
+                        position: 'absolute'
+                    });
+                    
+                    this.pageContainer.appendChild(placeholder);
+                    this.setupDropZone(placeholder, card.id);
+                    
+                    // Restore image if it exists
+                    if (card.image) {
+                        const container = document.createElement('div');
+                        container.className = 'image-container';
+                        
+                        const img = document.createElement('img');
+                        img.src = card.image.src;
+                        
+                        // Set initial image styles for proper fitting
+                        const containerAspect = card.size.width / card.size.height;
+                        const imageAspect = card.image.originalWidth / card.image.originalHeight;
+                        
+                        if (containerAspect > imageAspect) {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                        } else {
+                            img.style.width = 'auto';
+                            img.style.height = '100%';
+                        }
+                        
+                        // Position image initially at center
+                        img.style.position = 'absolute';
+                        img.style.left = '50%';
+                        img.style.top = '50%';
+                        
+                        // Apply stored image settings
+                        if (card.imageSettings) {
+                            const transform = [];
+                            transform.push('translate(-50%, -50%)'); // Center the image
+                            
+                            if (card.imageSettings.translateX || card.imageSettings.translateY) {
+                                transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
+                            }
+                            
+                            if (card.imageSettings.rotation) {
+                                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
+                            }
+                            
+                            if (card.imageSettings.zoom) {
+                                transform.push(`scale(${card.imageSettings.zoom / 100})`);
+                            }
+                            
+                            img.style.transform = transform.join(' ');
+                        } else {
+                            img.style.transform = 'translate(-50%, -50%)';
+                        }
+                        
+                        container.appendChild(img);
+                        placeholder.appendChild(container);
+                        
+                        // Restore edit overlay
+                        const editOverlay = document.createElement('div');
+                        editOverlay.className = 'edit-overlay';
+                        const editButton = document.createElement('button');
+                        editButton.className = 'edit-btn';
+                        editButton.innerHTML = '✎';
+                        editButton.onclick = () => this.setupImageEditor(container);
+                        editOverlay.appendChild(editButton);
+                        placeholder.appendChild(editOverlay);
+                    }
+                });
+            }
         }
     }
 
