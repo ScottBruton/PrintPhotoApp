@@ -5,6 +5,54 @@ class SessionStateManager {
             pages: [],
             currentPage: 0
         };
+        this.history = [];
+        this.currentHistoryIndex = -1;
+    }
+
+    // Save current state to history
+    saveState(actionName) {
+        // Remove any future states if we're in the middle of the history
+        if (this.currentHistoryIndex < this.history.length - 1) {
+            this.history = this.history.slice(0, this.currentHistoryIndex + 1);
+        }
+        
+        // Save current state
+        this.history.push({
+            state: JSON.parse(JSON.stringify(this.sessionData)),
+            action: actionName
+        });
+        this.currentHistoryIndex++;
+        
+        // Limit history size (optional)
+        if (this.history.length > 50) {
+            this.history.shift();
+            this.currentHistoryIndex--;
+        }
+    }
+
+    // Restore state from history
+    restoreState(state) {
+        this.sessionData = JSON.parse(JSON.stringify(state));
+    }
+
+    // Undo last action
+    undo() {
+        if (this.currentHistoryIndex > 0) {
+            this.currentHistoryIndex--;
+            this.restoreState(this.history[this.currentHistoryIndex].state);
+            return true;
+        }
+        return false;
+    }
+
+    // Redo last undone action
+    redo() {
+        if (this.currentHistoryIndex < this.history.length - 1) {
+            this.currentHistoryIndex++;
+            this.restoreState(this.history[this.currentHistoryIndex].state);
+            return true;
+        }
+        return false;
     }
 
     // Initialize a new page
@@ -15,6 +63,7 @@ class SessionStateManager {
             cards: []
         };
         this.sessionData.pages.push(newPage);
+        this.saveState('Create Page');
         return newPage;
     }
 
@@ -39,6 +88,7 @@ class SessionStateManager {
                 }
             };
             page.cards.push(card);
+            this.saveState('Add Card');
             return card;
         }
         return null;
@@ -53,7 +103,6 @@ class SessionStateManager {
                 originalWidth: imageData.originalWidth,
                 originalHeight: imageData.originalHeight
             };
-            // Keep existing image settings if they exist, otherwise initialize them
             if (!card.imageSettings) {
                 card.imageSettings = {
                     rotation: 0,
@@ -63,6 +112,7 @@ class SessionStateManager {
                     fit: 'contain'
                 };
             }
+            this.saveState('Add Image');
             return true;
         }
         return false;
@@ -76,6 +126,7 @@ class SessionStateManager {
                 ...card.imageSettings,
                 ...settings
             };
+            this.saveState('Edit Image');
             return true;
         }
         return false;
@@ -633,16 +684,18 @@ class PhotoLayoutEditor {
     }
 
     undo() {
-        if (this.commandIndex >= 0) {
-            this.commandHistory[this.commandIndex].undo();
-            this.commandIndex--;
+        if (this.sessionManager.undo()) {
+            // Refresh the current page view
+            this.navigatePage(0);
+            this.updatePageIndicator();
         }
     }
 
     redo() {
-        if (this.commandIndex < this.commandHistory.length - 1) {
-            this.commandIndex++;
-            this.commandHistory[this.commandIndex].execute();
+        if (this.sessionManager.redo()) {
+            // Refresh the current page view
+            this.navigatePage(0);
+            this.updatePageIndicator();
         }
     }
 
