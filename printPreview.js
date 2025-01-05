@@ -103,7 +103,10 @@ class PrintPreview {
 
     updatePageIndicator() {
         const indicator = this.element.querySelector('#previewPageIndicator');
-        indicator.textContent = `Page ${this.currentSettings.currentPage + 1} of ${this.pages.length}`;
+        const totalPages = this.pages.length;
+        const currentPage = this.currentSettings.currentPage + 1;
+        indicator.textContent = `Page ${currentPage} of ${totalPages}`;
+        console.log(`Page indicator updated: ${currentPage} of ${totalPages}`);
     }
 
     updateNavigationButtons() {
@@ -138,12 +141,25 @@ class PrintPreview {
     }
 
     setPages(pages) {
-        this.pages = pages.map(page => page.cloneNode(true));
+        console.log('Setting pages in print preview:', pages.length);
+        
+        // Store the pages
+        this.pages = Array.from(pages).map(page => page.cloneNode(true));
+        
+        // Reset to first page
         this.currentSettings.currentPage = 0;
-        this.currentSettings.zoom = 'auto'; // Start with auto-fit
+        this.currentSettings.zoom = 'auto';
+        
+        // Update the UI
         this.showCurrentPage();
         this.updatePageIndicator();
         this.updateNavigationButtons();
+        
+        console.log('Print preview updated:', {
+            totalPages: this.pages.length,
+            currentPage: this.currentSettings.currentPage + 1,
+            zoom: this.currentSettings.zoom
+        });
     }
 
     fitToScreen() {

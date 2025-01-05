@@ -169,6 +169,8 @@ class PhotoLayoutEditor {
         this.sessionManager = new SessionStateManager();
         this.initializeElements();
         this.bindEvents();
+        // Make the instance globally available
+        window.rendererInstance = this;
     }
 
     initializeElements() {
@@ -1217,8 +1219,9 @@ class PhotoLayoutEditor {
     }
 
     setupDropZone(placeholder, cardId) {
-        placeholder.addEventListener('dragover', e => {
+        placeholder.addEventListener('dragover', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             placeholder.classList.add('dragover');
         });
 
@@ -1226,11 +1229,60 @@ class PhotoLayoutEditor {
             placeholder.classList.remove('dragover');
         });
 
-        placeholder.addEventListener('drop', e => {
+        placeholder.addEventListener('drop', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             placeholder.classList.remove('dragover');
-            this.handleImageDrop(e, placeholder, cardId);
+
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Get the current page number
+                        const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+                        
+                        // Update the session state with the image data
+                        this.sessionManager.setCardImage(pageNumber, cardId, {
+                            src: event.target.result,
+                            originalWidth: img.width,
+                            originalHeight: img.height
+                        });
+                        
+                        // Add the image to the placeholder
+                        this.addImageToCard(placeholder, event.target.result);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
+    }
+
+    addImageToCard(placeholder, imageSrc) {
+        // Remove any existing image container
+        const existingContainer = placeholder.querySelector('.image-container');
+        if (existingContainer) {
+            existingContainer.remove();
+        }
+
+        // Create image container
+        const container = document.createElement('div');
+        container.className = 'image-container';
+        
+        // Create and set up image
+        const img = document.createElement('img');
+        img.src = imageSrc;
+        
+        // Add image to container
+        container.appendChild(img);
+        
+        // Add container to placeholder
+        placeholder.appendChild(container);
+        
+        // Set up edit overlay
+        this.setupEditOverlay(placeholder);
     }
 
     addEditOverlay(placeholder, cardId) {

@@ -29,11 +29,45 @@ class PrintManager {
         // Show the dialog
         this.dialog.style.display = 'flex';
         
-        // Get all pages
-        const pages = this.getAllPages();
-        
+        // Get the renderer instance
+        const rendererInstance = window.rendererInstance;
+        if (!rendererInstance || !rendererInstance.sessionManager) {
+            console.error('Renderer instance not found');
+            return;
+        }
+
+        // Get pages directly from session data
+        const sessionPages = rendererInstance.sessionManager.sessionData.pages;
+        console.log('Pages in session:', sessionPages.length);
+
+        // Store current page to restore later
+        const currentPage = rendererInstance.sessionManager.sessionData.currentPage;
+        const pages = [];
+
+        // Capture each page's DOM content
+        for (let i = 0; i < sessionPages.length; i++) {
+            // Switch to the page we want to capture
+            rendererInstance.sessionManager.sessionData.currentPage = i;
+            rendererInstance.navigatePage(0);
+            
+            // Wait a moment for the page to render
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Get the page element
+            const pageElement = document.getElementById('a4Page');
+            if (pageElement) {
+                pages.push(pageElement.cloneNode(true));
+                console.log(`Captured page ${i + 1} of ${sessionPages.length}`);
+            }
+        }
+
+        // Restore original page
+        rendererInstance.sessionManager.sessionData.currentPage = currentPage;
+        rendererInstance.navigatePage(0);
+
         // Set the pages in the preview
         this.printPreview.setPages(pages);
+        console.log('Print preview updated with', pages.length, 'pages');
 
         // Get available printers
         await this.refreshPrinters();
