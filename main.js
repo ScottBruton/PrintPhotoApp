@@ -226,6 +226,30 @@ ipcMain.handle('print', async (event, content, settings) => {
     }
 });
 
+// Handle save PDF
+ipcMain.handle('save-pdf', async (event, { data, defaultPath }) => {
+    try {
+        const { filePath } = await dialog.showSaveDialog({
+            defaultPath: defaultPath,
+            filters: [
+                { name: 'PDF Files', extensions: ['pdf'] }
+            ],
+            properties: ['showOverwriteConfirmation']
+        });
+
+        if (filePath) {
+            // Convert ArrayBuffer to Buffer
+            const buffer = Buffer.from(data);
+            fs.writeFileSync(filePath, buffer);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error saving PDF:', error);
+        return false;
+    }
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {

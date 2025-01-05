@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('electron', {
     print: (content, settings) => ipcRenderer.invoke('print', content, settings),
     log: {
         error: (message) => ipcRenderer.invoke('log-error', message)
-    }
+    },
+    savePDF: (data) => ipcRenderer.invoke('save-pdf', data)
 }); 

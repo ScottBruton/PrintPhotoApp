@@ -769,18 +769,160 @@ class PhotoLayoutEditor {
     }
 
     async exportToPDF() {
-        const pdf = new jsPDF();
-        
-        for (let i = 0; i < this.sessionManager.sessionData.pages.length; i++) {
-            const pageElement = document.getElementById('a4Page');
-            const canvas = await html2canvas(pageElement);
-            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        try {
+            // Store current page to restore it later
+            const currentPageIndex = this.sessionManager.sessionData.currentPage;
             
-            if (i > 0) pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+            // Create PDF with A4 dimensions (210mm x 297mm)
+            const pdf = new window.jspdf.jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Process each page
+            for (let i = 0; i < this.sessionManager.sessionData.pages.length; i++) {
+                // Navigate to the page to render it
+                this.sessionManager.sessionData.currentPage = i;
+                this.navigatePage(0); // Force render the current page
+                
+                // Wait a moment for images to load
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Hide empty placeholders before capture
+                const emptyPlaceholders = document.querySelectorAll('.photo-placeholder:not(:has(img))');
+                emptyPlaceholders.forEach(placeholder => {
+                    placeholder.style.display = 'none';
+                });
+                
+                // Remove dotted borders for capture
+                const placeholders = document.querySelectorAll('.photo-placeholder');
+                placeholders.forEach(placeholder => {
+                    placeholder.style.border = 'none';
+                    placeholder.style.backgroundColor = 'transparent';
+                });
+                
+                // Hide edit overlays for capture
+                const editOverlays = document.querySelectorAll('.edit-overlay');
+                editOverlays.forEach(overlay => {
+                    overlay.style.display = 'none';
+                });
+
+                // Ensure images maintain their transforms
+                const images = document.querySelectorAll('.photo-placeholder img');
+                images.forEach(img => {
+                    const container = img.closest('.image-container');
+                    if (container) {
+                        // Get the card data from session state
+                        const placeholder = container.closest('.photo-placeholder');
+                        const cardId = placeholder.id;
+                        const card = this.sessionManager.getCard(i + 1, cardId);
+                        
+                        if (card && card.imageSettings) {
+                            // Apply the stored settings
+                            const transform = [];
+                            transform.push('translate(-50%, -50%)'); // Center the image
+                            
+                            if (card.imageSettings.translateX || card.imageSettings.translateY) {
+                                transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
+                            }
+                            
+                            if (card.imageSettings.rotation) {
+                                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
+                            }
+                            
+                            if (card.imageSettings.zoom) {
+                                transform.push(`scale(${card.imageSettings.zoom / 100})`);
+                            }
+                            
+                            img.style.transform = transform.join(' ');
+                            img.style.position = 'absolute';
+                            img.style.left = '50%';
+                            img.style.top = '50%';
+                            
+                            // Set size based on aspect ratio
+                            const containerAspect = card.size.width / card.size.height;
+                            const imageAspect = card.image.originalWidth / card.image.originalHeight;
+                            
+                            if (containerAspect > imageAspect) {
+                                img.style.width = 'auto';
+                                img.style.height = '100%';
+                            } else {
+                                img.style.width = '100%';
+                                img.style.height = 'auto';
+                            }
+                        }
+                    }
+                });
+                
+                // Capture the page
+                const pageElement = document.getElementById('a4Page');
+                const canvas = await html2canvas(pageElement, {
+                    scale: 4, // Higher resolution
+                    useCORS: true, // Enable cross-origin image loading
+                    allowTaint: true,
+                    backgroundColor: '#ffffff',
+                    width: pageElement.offsetWidth,
+                    height: pageElement.offsetHeight,
+                    logging: false, // Disable logging
+                    onclone: (clonedDoc) => {
+                        // Apply transforms to cloned images
+                        const clonedImages = clonedDoc.querySelectorAll('.photo-placeholder img');
+                        clonedImages.forEach(img => {
+                            const originalImg = document.querySelector(`img[src="${img.src}"]`);
+                            if (originalImg) {
+                                img.style.transform = originalImg.style.transform;
+                                img.style.width = originalImg.style.width;
+                                img.style.height = originalImg.style.height;
+                                img.style.position = originalImg.style.position;
+                                img.style.left = originalImg.style.left;
+                                img.style.top = originalImg.style.top;
+                            }
+                        });
+                    }
+                });
+                
+                // Convert to image and add to PDF
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                
+                // Add new page if not first page
+                if (i > 0) {
+                    pdf.addPage();
+                }
+                
+                // Add image to page (full A4 size)
+                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+                
+                // Restore visibility of elements
+                emptyPlaceholders.forEach(placeholder => {
+                    placeholder.style.display = 'block';
+                });
+                placeholders.forEach(placeholder => {
+                    placeholder.style.border = '2px dashed #dee2e6';
+                    placeholder.style.backgroundColor = '#f8f9fa';
+                });
+                editOverlays.forEach(overlay => {
+                    overlay.style.display = 'block';
+                });
+            }
+            
+            // Restore original page
+            this.sessionManager.sessionData.currentPage = currentPageIndex;
+            this.navigatePage(0);
+            
+            // Save the PDF
+            const result = await window.electron.invoke('save-pdf', {
+                data: pdf.output('arraybuffer'),
+                defaultPath: 'photo-layout.pdf'
+            });
+            
+            if (result) {
+                alert('PDF exported successfully!');
+            }
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            alert('Error exporting PDF. Please try again.');
         }
-        
-        pdf.save('photo-layout.pdf');
     }
 
     showPrintPreview() {
