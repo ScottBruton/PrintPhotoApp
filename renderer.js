@@ -482,14 +482,7 @@ class PhotoLayoutEditor {
                 placeholder.appendChild(container);
                 
                 // Add edit overlay
-                const editOverlay = document.createElement('div');
-                editOverlay.className = 'edit-overlay';
-                const editButton = document.createElement('button');
-                editButton.className = 'edit-btn';
-                editButton.innerHTML = '✎';
-                editButton.onclick = () => this.setupImageEditor(container);
-                editOverlay.appendChild(editButton);
-                placeholder.appendChild(editOverlay);
+                this.addEditOverlay(placeholder, cardId);
             };
             img.src = event.target.result;
         };
@@ -657,15 +650,8 @@ class PhotoLayoutEditor {
                         container.appendChild(img);
                         placeholder.appendChild(container);
                         
-                        // Restore edit overlay
-                        const editOverlay = document.createElement('div');
-                        editOverlay.className = 'edit-overlay';
-                        const editButton = document.createElement('button');
-                        editButton.className = 'edit-btn';
-                        editButton.innerHTML = '✎';
-                        editButton.onclick = () => this.setupImageEditor(container);
-                        editOverlay.appendChild(editButton);
-                        placeholder.appendChild(editOverlay);
+                        // Add edit and delete buttons overlay
+                        this.addEditOverlay(placeholder, card.id);
                     }
                 });
             }
@@ -806,15 +792,8 @@ class PhotoLayoutEditor {
                         container.appendChild(img);
                         placeholder.appendChild(container);
                         
-                        // Restore edit overlay
-                        const editOverlay = document.createElement('div');
-                        editOverlay.className = 'edit-overlay';
-                        const editButton = document.createElement('button');
-                        editButton.className = 'edit-btn';
-                        editButton.innerHTML = '✎';
-                        editButton.onclick = () => this.setupImageEditor(container);
-                        editOverlay.appendChild(editButton);
-                        placeholder.appendChild(editOverlay);
+                        // Add edit and delete buttons overlay
+                        this.addEditOverlay(placeholder, card.id);
                     }
                 });
             }
@@ -1254,17 +1233,58 @@ class PhotoLayoutEditor {
         });
     }
 
-    addEditOverlay(placeholder) {
+    addEditOverlay(placeholder, cardId) {
         const editOverlay = document.createElement('div');
         editOverlay.className = 'edit-overlay';
         
+        // Create delete button
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-btn';
+        deleteButton.innerHTML = '×';
+        deleteButton.onclick = () => this.deleteImage(placeholder, cardId);
+        
+        // Create edit button
         const editButton = document.createElement('button');
         editButton.className = 'edit-btn';
         editButton.innerHTML = '✎';
         editButton.onclick = () => this.setupImageEditor(placeholder);
         
+        // Add buttons to overlay
         editOverlay.appendChild(editButton);
+        editOverlay.appendChild(deleteButton);
         placeholder.appendChild(editOverlay);
+    }
+
+    // Add method to handle image deletion
+    deleteImage(placeholder, cardId) {
+        const confirmed = confirm('Are you sure you want to delete this image?');
+        if (confirmed) {
+            // Get the current page number
+            const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+            
+            // Get the card
+            const card = this.sessionManager.getCard(pageNumber, cardId);
+            if (card) {
+                // Clear the image data
+                card.image = null;
+                card.imageSettings = {
+                    rotation: 0,
+                    zoom: 100,
+                    translateX: 0,
+                    translateY: 0,
+                    fit: 'contain'
+                };
+                
+                // Save the state
+                this.sessionManager.saveState('Delete Image');
+                
+                // Clear the placeholder
+                placeholder.innerHTML = '';
+                
+                // Reinitialize the drop zone
+                this.setupDropZone(placeholder, cardId);
+            }
+        }
     }
 }
 

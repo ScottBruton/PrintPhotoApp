@@ -77,20 +77,37 @@ body {
 }
 
 .photo-placeholder:hover .edit-overlay {
-    display: block;
+    display: flex;
+    gap: 5px;
+    flex-direction: row;
 }
 
-.edit-btn {
+.edit-btn, .delete-btn {
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid #ddd;
     border-radius: 4px;
     padding: 4px;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.edit-btn:hover {
+.edit-btn:hover, .delete-btn:hover {
     background: #fff;
+}
+
+.delete-btn {
+    color: #dc3545;
+}
+
+.delete-btn:hover {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
 }
 
 .image-editor-controls {
