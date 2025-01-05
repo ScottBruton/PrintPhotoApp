@@ -127,6 +127,9 @@ class PhotoLayoutEditor {
         this.prevPageBtn.addEventListener('click', () => this.navigatePage(-1));
         this.nextPageBtn.addEventListener('click', () => this.navigatePage(1));
         
+        // Add edit size button event listener
+        document.getElementById('editSize').addEventListener('click', () => this.showSizeModal(true));
+        
         let selectedSize = null;
         const applyToPageBtn = document.getElementById('applyToPage');
 
@@ -275,6 +278,12 @@ class PhotoLayoutEditor {
         const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
         const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
         
+        // Validate if cards fit on page
+        if (cols <= 0 || rows <= 0) {
+            alert('Selected size is too large for A4 page');
+            return;
+        }
+
         // Clear existing placeholders
         this.pageContainer.innerHTML = '';
         
@@ -285,7 +294,19 @@ class PhotoLayoutEditor {
         if (!page) {
             page = this.sessionManager.createPage(pageNumber + 1, size);
         } else {
+            // Store the old size for comparison
+            const oldSize = page.pageSize;
             page.pageSize = size;
+            
+            // If this is a size change and there are existing cards with images
+            if (oldSize && oldSize !== size && page.cards.some(card => card.image)) {
+                const proceed = confirm('Changing the size will remove all existing photos. Do you want to continue?');
+                if (!proceed) {
+                    page.pageSize = oldSize;
+                    this.modal.style.display = 'none';
+                    return;
+                }
+            }
             page.cards = []; // Clear existing cards
         }
         
@@ -429,8 +450,24 @@ class PhotoLayoutEditor {
         };
     }
 
-    showSizeModal() {
+    showSizeModal(isEdit = false) {
         this.modal.style.display = 'block';
+        
+        // Update the Apply To Page button text based on context
+        const applyToPageBtn = document.getElementById('applyToPage');
+        applyToPageBtn.textContent = isEdit ? 'Update Size' : 'Apply To Page';
+        
+        // Clear any previous selections
+        document.querySelectorAll('.size-options button').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        // Reset custom size inputs
+        document.getElementById('enableCustomSize').checked = false;
+        document.getElementById('customWidth').disabled = true;
+        document.getElementById('customHeight').disabled = true;
+        document.getElementById('applyCustomSize').disabled = true;
+        document.getElementById('customSizeSection').classList.remove('enabled');
     }
 
     addNewPage() {
