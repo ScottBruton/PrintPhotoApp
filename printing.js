@@ -1,39 +1,39 @@
 class PrintManager {
     constructor() {
         this.dialog = null;
-        this.previewContent = null;
+        this.printPreview = null;
         this.currentSettings = {
             printer: '',
             copies: 1,
             layout: 'portrait',
             pages: 'all',
             pageRanges: '',
-            color: true,
-            zoom: 100
+            color: true
         };
         this.printerList = [];
         this.toastContainer = null;
         
-        // Initialize toast container immediately
         this.setupToastContainer();
-        console.log('Toast container initialized:', this.toastContainer);  // Debug log
     }
 
     async showPrintDialog(contentToprint) {
-        // Create and append the dialog if it doesn't exist
         if (!this.dialog) {
             this.createPrintDialog();
         }
 
-        // Clone the content and prepare it for printing
-        const preparedContent = this.prepareContent(contentToprint);
-        
+        // Initialize print preview if not already done
+        if (!this.printPreview) {
+            this.printPreview = new PrintPreview();
+        }
+
         // Show the dialog
         this.dialog.style.display = 'flex';
         
-        // Set the preview content
-        this.previewContent.innerHTML = '';
-        this.previewContent.appendChild(preparedContent);
+        // Get all pages
+        const pages = this.getAllPages();
+        
+        // Set the pages in the preview
+        this.printPreview.setPages(pages);
 
         // Get available printers
         await this.refreshPrinters();
@@ -46,6 +46,10 @@ class PrintManager {
     createPrintDialog() {
         this.dialog = document.createElement('div');
         this.dialog.className = 'print-dialog-overlay';
+        
+        // Create the print preview instance
+        this.printPreview = new PrintPreview();
+        
         this.dialog.innerHTML = `
             <div class="print-dialog">
                 <div class="print-settings">
@@ -114,6 +118,7 @@ class PrintManager {
                             </label>
                             <input type="text" class="page-ranges" placeholder="e.g. 1-5, 8, 11-13" disabled>
                         </div>
+                    </div>
 
                     <!-- Paper Type -->
                     <div class="settings-section">
@@ -132,7 +137,6 @@ class PrintManager {
                                 <span>Photo Paper</span>
                             </label>
                         </div>
-                    </div>
 
                         <!-- Action Buttons -->
                     <div class="dialog-actions">
@@ -143,29 +147,18 @@ class PrintManager {
 
                     
                 </div>
-
-                <div class="print-preview">
-                    <div class="preview-toolbar">
-                        <button id="zoomOut"><i class="fas fa-search-minus"></i></button>
-                        <span id="zoomLevel">100%</span>
-                        <button id="zoomIn"><i class="fas fa-search-plus"></i></button>
-                    </div>
-                    <div id="previewContent" class="preview-content"></div>
-                </div>
             </div>
         `;
 
-        // Store preview content reference
-        this.previewContent = this.dialog.querySelector('#previewContent');
+        // Get the print dialog element and insert the preview
+        const printDialog = this.dialog.querySelector('.print-dialog');
+        printDialog.appendChild(this.printPreview.getElement());
 
         // Add event listeners
         this.setupEventListeners();
 
         // Add to document
         document.body.appendChild(this.dialog);
-
-        // Initialize preview
-        this.initializePreview();
     }
 
     setupEventListeners() {
@@ -273,7 +266,7 @@ class PrintManager {
         
         if (page) {
             // Set initial scale to fit container
-            page.style.setProperty('--preview-scale', '0.8');
+            page.style.setProperty('--preview-scale', '0.5');
         }
     }
 
@@ -309,34 +302,21 @@ class PrintManager {
             pages: this.dialog.querySelector('input[name="pages"]:checked').value,
             pageRanges: this.dialog.querySelector('.page-ranges').value,
             quality: parseInt(this.dialog.querySelector('#printQuality').value),
-            paperType: this.dialog.querySelector('input[name="paperType"]:checked').value
+            paperType: this.dialog.querySelector('input[name="paperType"]:checked').value,
+            selectedPage: this.printPreview ? this.printPreview.getCurrentPage() : 0
         };
-
-        console.log('Print settings:', settings);  // Debug log
 
         // Close the print dialog before sending to print
         this.dialog.style.display = 'none';
 
         // Send to print
-        const success = await window.electron.print(this.previewContent.innerHTML, settings);
-        console.log('Print success:', success);  // Debug log
-        console.log('Printer type:', settings.printer);  // Debug log
-        
-        // Show toast for successful print jobs (including Test Printer)
-        if (success && settings.printer !== 'Save as PDF') {
-            console.log('Showing toast message');  // Debug log
-            this.showToast(`Successfully sent to printer: ${settings.printer}`);
-        }
-
-        // Only call closeDialog if print was unsuccessful
-        if (!success) {
-            this.closeDialog(success);
-        } else {
-            // Just resolve the promise
-            if (this.resolvePromise) {
-                this.resolvePromise(success);
-            }
-        }
+        window.electron.print(this.printPreview.previewContent.innerHTML, settings)
+            .then(success => {
+                if (success && settings.printer !== 'Save as PDF') {
+                    this.showToast(`Successfully sent to printer: ${settings.printer}`);
+                }
+                this.closeDialog(success);
+            });
     }
 
     closeDialog(success) {
@@ -345,10 +325,26 @@ class PrintManager {
             this.resolvePromise(success);
         }
     }
+
+    getAllPages() {
+        // Get all pages from the document
+        const pages = [];
+        const pageContainer = document.getElementById('pageContainer');
+        
+        if (pageContainer) {
+            // Get all A4 pages
+            const a4Pages = pageContainer.querySelectorAll('.a4-page');
+            a4Pages.forEach(page => {
+                pages.push(page);
+            });
+        }
+        
+        return pages;
+    }
 }
 
 // Export the PrintManager
-window.PrintManager = PrintManager; 
+window.PrintManager = PrintManager;
 
 // Add this right after the PrintManager class definition but before the export
 window.testToast = function() {
