@@ -140,6 +140,20 @@ class PhotoLayoutEditor {
         // Add edit size button event listener
         document.getElementById('editSize').addEventListener('click', () => this.showSizeModal(true));
         
+        // Add close button event listener for size modal
+        document.getElementById('closeSizeModal').addEventListener('click', () => {
+            this.modal.style.display = 'none';
+            // If this is a new page and no size was selected, remove the page
+            if (this.sessionManager.sessionData.pages.length > 0) {
+                const currentPage = this.sessionManager.getPage(this.sessionManager.sessionData.currentPage + 1);
+                if (!currentPage.pageSize) {
+                    this.sessionManager.sessionData.pages.pop();
+                    this.sessionManager.sessionData.currentPage = Math.max(0, this.sessionManager.sessionData.pages.length - 1);
+                    this.updatePageIndicator();
+                }
+            }
+        });
+        
         // Move selectedSize to class property
         this.selectedSize = null;
         const applyToPageBtn = document.getElementById('applyToPage');
