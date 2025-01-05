@@ -130,8 +130,10 @@ class PhotoLayoutEditor {
         // Add edit size button event listener
         document.getElementById('editSize').addEventListener('click', () => this.showSizeModal(true));
         
-        let selectedSize = null;
+        // Move selectedSize to class property
+        this.selectedSize = null;
         const applyToPageBtn = document.getElementById('applyToPage');
+        applyToPageBtn.disabled = true;  // Initially disable the button
 
         // Handle custom size checkbox
         const customSizeCheckbox = document.getElementById('enableCustomSize');
@@ -139,76 +141,6 @@ class PhotoLayoutEditor {
         const customWidthInput = document.getElementById('customWidth');
         const customHeightInput = document.getElementById('customHeight');
         const applyCustomSizeBtn = document.getElementById('applyCustomSize');
-
-        // Handle custom size validation
-        const validateInput = (input, min, max, validationMsg) => {
-            // Allow empty or partial input
-            if (input.value === '' || input.value === '-') {
-                input.classList.add('invalid');
-                validationMsg.classList.add('show');
-                applyCustomSizeBtn.disabled = true;
-                return false;
-            }
-
-            const value = parseInt(input.value);
-            const isValid = !isNaN(value) && value >= min && value <= max;
-            
-            input.classList.toggle('invalid', !isValid);
-            validationMsg.classList.toggle('show', !isValid);
-            
-            // Check both inputs for validity
-            const widthInput = document.getElementById('customWidth');
-            const heightInput = document.getElementById('customHeight');
-            
-            // Check if both inputs have valid values
-            const widthValue = parseInt(widthInput.value);
-            const heightValue = parseInt(heightInput.value);
-            
-            const widthValid = !isNaN(widthValue) && widthValue >= 1 && widthValue <= 210;
-            const heightValid = !isNaN(heightValue) && heightValue >= 1 && heightValue <= 297;
-            
-            // Enable button only if BOTH inputs are valid
-            applyCustomSizeBtn.disabled = !(widthValid && heightValid);
-            
-            return isValid;
-        };
-
-        // Update the event listeners with immediate validation
-        customWidthInput.addEventListener('input', (e) => {
-            validateInput(e.target, 1, 210, document.getElementById('widthValidation'));
-        });
-
-        customHeightInput.addEventListener('input', (e) => {
-            validateInput(e.target, 1, 297, document.getElementById('heightValidation'));
-        });
-
-        // Update custom size checkbox handler
-        customSizeCheckbox.addEventListener('change', (e) => {
-            customSizeSection.classList.toggle('enabled', e.target.checked);
-            customWidthInput.disabled = !e.target.checked;
-            customHeightInput.disabled = !e.target.checked;
-            
-            if (e.target.checked) {
-                // Validate both inputs immediately when enabling
-                validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation'));
-                validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'));
-            } else {
-                // Disable the button when unchecking
-                applyCustomSizeBtn.disabled = true;
-            }
-        });
-
-        // Update Apply Custom Size handler
-        document.getElementById('applyCustomSize').addEventListener('click', () => {
-            const width = customWidthInput.value;
-            const height = customHeightInput.value;
-            
-            if (validateInput(customWidthInput, 1, 210, widthValidation) && 
-                validateInput(customHeightInput, 1, 297, heightValidation)) {
-                selectedSize = `${width}x${height}`;
-                document.getElementById('applyToPage').disabled = false;
-            }
-        });
 
         // Update preset size button handling
         document.querySelectorAll('.size-options button').forEach(button => {
@@ -221,8 +153,8 @@ class PhotoLayoutEditor {
                 applyCustomSizeBtn.disabled = true;
 
                 // Update selected size
-                selectedSize = e.target.dataset.size;
-                document.getElementById('applyToPage').disabled = false;
+                this.selectedSize = e.target.dataset.size;
+                applyToPageBtn.disabled = false;
                 
                 // Highlight the selected button
                 document.querySelectorAll('.size-options button').forEach(btn => {
@@ -234,14 +166,12 @@ class PhotoLayoutEditor {
 
         // Handle Apply To Page button
         applyToPageBtn.addEventListener('click', () => {
-            console.log("applyToPageBtn clicked");
-            console.log(selectedSize);
-            if (selectedSize != "") {
-                this.createPhotoPlaceholders(selectedSize);
+            if (this.selectedSize) {
+                this.setPageSize(this.selectedSize);
                 this.modal.style.display = 'none';
                 
                 // Reset selection state
-                selectedSize = null;
+                this.selectedSize = null;
                 applyToPageBtn.disabled = true;
                 document.querySelectorAll('.size-options button').forEach(btn => {
                     btn.classList.remove('selected');
@@ -249,16 +179,93 @@ class PhotoLayoutEditor {
             }
         });
 
+        // Update Apply Custom Size handler
+        document.getElementById('applyCustomSize').addEventListener('click', () => {
+            const width = customWidthInput.value;
+            const height = customHeightInput.value;
+            
+            if (this.validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation')) && 
+                this.validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'))) {
+                this.selectedSize = `${width}x${height}`;
+                applyToPageBtn.disabled = false;
+            }
+        });
+
+        // Handle custom size validation
+        customWidthInput.addEventListener('input', (e) => {
+            this.validateInput(e.target, 1, 210, document.getElementById('widthValidation'));
+        });
+
+        customHeightInput.addEventListener('input', (e) => {
+            this.validateInput(e.target, 1, 297, document.getElementById('heightValidation'));
+        });
+
+        // Update custom size checkbox handler
+        customSizeCheckbox.addEventListener('change', (e) => {
+            customSizeSection.classList.toggle('enabled', e.target.checked);
+            customWidthInput.disabled = !e.target.checked;
+            customHeightInput.disabled = !e.target.checked;
+            
+            if (e.target.checked) {
+                // Validate both inputs immediately when enabling
+                this.validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation'));
+                this.validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'));
+                // Clear any preset selection
+                document.querySelectorAll('.size-options button').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                this.selectedSize = null;
+                applyToPageBtn.disabled = true;
+            } else {
+                // Disable the button when unchecking
+                applyCustomSizeBtn.disabled = true;
+                this.selectedSize = null;
+                applyToPageBtn.disabled = true;
+            }
+        });
+
         // Setup drag and drop
         this.setupDragAndDrop();
 
-        // Add new event listeners
+        // Add other event listeners
         document.getElementById('saveLayout').addEventListener('click', () => this.saveLayout());
         document.getElementById('loadLayout').addEventListener('click', () => this.loadLayout());
         document.getElementById('exportPDF').addEventListener('click', () => this.exportToPDF());
         document.getElementById('printPreview').addEventListener('click', () => this.showPrintPreview());
         document.getElementById('undo').addEventListener('click', () => this.undo());
         document.getElementById('redo').addEventListener('click', () => this.redo());
+    }
+
+    validateInput(input, min, max, validationMsg) {
+        // Allow empty or partial input
+        if (input.value === '' || input.value === '-') {
+            input.classList.add('invalid');
+            validationMsg.classList.add('show');
+            document.getElementById('applyCustomSize').disabled = true;
+            return false;
+        }
+
+        const value = parseInt(input.value);
+        const isValid = !isNaN(value) && value >= min && value <= max;
+        
+        input.classList.toggle('invalid', !isValid);
+        validationMsg.classList.toggle('show', !isValid);
+        
+        // Check both inputs for validity
+        const widthInput = document.getElementById('customWidth');
+        const heightInput = document.getElementById('customHeight');
+        
+        // Check if both inputs have valid values
+        const widthValue = parseInt(widthInput.value);
+        const heightValue = parseInt(heightInput.value);
+        
+        const widthValid = !isNaN(widthValue) && widthValue >= 1 && widthValue <= 210;
+        const heightValid = !isNaN(heightValue) && heightValue >= 1 && heightValue <= 297;
+        
+        // Enable button only if BOTH inputs are valid
+        document.getElementById('applyCustomSize').disabled = !(widthValid && heightValid);
+        
+        return isValid;
     }
 
     setPageSize(size) {
@@ -361,12 +368,9 @@ class PhotoLayoutEditor {
                     originalHeight: img.height
                 };
                 
-                // Update session state
-                this.sessionManager.setCardImage(
-                    this.sessionManager.sessionData.currentPage + 1,
-                    cardId,
-                    imageData
-                );
+                // Update session state with the new image
+                const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+                this.sessionManager.setCardImage(pageNumber, cardId, imageData);
                 
                 // Update DOM
                 this.updateCardDisplay(placeholder, imageData);
@@ -471,9 +475,21 @@ class PhotoLayoutEditor {
     }
 
     addNewPage() {
-        this.sessionManager.sessionData.pages.push({ pageNumber: this.sessionManager.sessionData.pages.length + 1, pageSize: null, cards: [] });
-        this.sessionManager.sessionData.currentPage = this.sessionManager.sessionData.pages.length - 1;
+        // Create a new page in the session manager
+        const newPageNumber = this.sessionManager.sessionData.pages.length + 1;
+        this.sessionManager.sessionData.pages.push({
+            pageNumber: newPageNumber,
+            pageSize: null,
+            cards: []
+        });
+        
+        // Update current page to the new page
+        this.sessionManager.sessionData.currentPage = newPageNumber - 1;
+        
+        // Update the page indicator
         this.updatePageIndicator();
+        
+        // Show the size modal for the new page
         this.showSizeModal();
     }
 
@@ -482,8 +498,75 @@ class PhotoLayoutEditor {
         if (newPage >= 0 && newPage < this.sessionManager.sessionData.pages.length) {
             this.sessionManager.sessionData.currentPage = newPage;
             this.updatePageIndicator();
-            if (this.sessionManager.sessionData.pages[this.sessionManager.sessionData.currentPage].pageSize) {
-                this.createPhotoPlaceholders(this.sessionManager.sessionData.pages[this.sessionManager.sessionData.currentPage].pageSize, this.sessionManager.sessionData.pages[this.sessionManager.sessionData.currentPage]);
+            
+            // Get the current page data
+            const currentPage = this.sessionManager.getPage(newPage + 1);
+            if (currentPage && currentPage.pageSize) {
+                // Clear the current page container
+                this.pageContainer.innerHTML = '';
+                
+                // Recreate the layout with the page's size
+                const [width, height] = currentPage.pageSize.split('x').map(n => parseInt(n));
+                const PAGE_WIDTH = 210;
+                const PAGE_HEIGHT = 297;
+                const MARGIN = 5;
+                const SPACING = 10;
+                
+                const availableWidth = PAGE_WIDTH - (2 * MARGIN);
+                const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
+                
+                const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
+                const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
+                
+                // Recreate each card and restore its image if it exists
+                currentPage.cards.forEach(card => {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'photo-placeholder';
+                    placeholder.id = card.id;
+                    
+                    Object.assign(placeholder.style, {
+                        width: `${card.size.width}mm`,
+                        height: `${card.size.height}mm`,
+                        left: `${card.position.x}mm`,
+                        top: `${card.position.y}mm`,
+                        position: 'absolute'
+                    });
+                    
+                    this.pageContainer.appendChild(placeholder);
+                    this.setupDropZone(placeholder, card.id);
+                    
+                    // Restore image if it exists
+                    if (card.image) {
+                        const container = document.createElement('div');
+                        container.className = 'image-container';
+                        
+                        const img = document.createElement('img');
+                        img.src = card.image.src;
+                        
+                        // Apply stored image settings
+                        if (card.imageSettings) {
+                            img.style.transform = `
+                                translate(-50%, -50%)
+                                translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)
+                                rotate(${card.imageSettings.rotation}deg)
+                                scale(${card.imageSettings.zoom / 100})
+                            `;
+                        }
+                        
+                        container.appendChild(img);
+                        placeholder.appendChild(container);
+                        
+                        // Restore edit overlay
+                        const editOverlay = document.createElement('div');
+                        editOverlay.className = 'edit-overlay';
+                        const editButton = document.createElement('button');
+                        editButton.className = 'edit-btn';
+                        editButton.innerHTML = '✎';
+                        editButton.onclick = () => this.setupImageEditor(container);
+                        editOverlay.appendChild(editButton);
+                        placeholder.appendChild(editOverlay);
+                    }
+                });
             }
         }
     }
