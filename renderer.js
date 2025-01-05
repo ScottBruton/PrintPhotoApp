@@ -1275,14 +1275,42 @@ class PhotoLayoutEditor {
         const img = document.createElement('img');
         img.src = imageSrc;
         
+        // Set initial image styles for proper fitting
+        const containerRect = placeholder.getBoundingClientRect();
+        const containerAspect = containerRect.width / containerRect.height;
+        
+        img.onload = () => {
+            const imageAspect = img.naturalWidth / img.naturalHeight;
+            
+            if (containerAspect > imageAspect) {
+                img.style.width = 'auto';
+                img.style.height = '100%';
+            } else {
+                img.style.width = '100%';
+                img.style.height = 'auto';
+            }
+            
+            // Center the image
+            img.style.position = 'absolute';
+            img.style.top = '50%';
+            img.style.left = '50%';
+            img.style.transform = 'translate(-50%, -50%)';
+        };
+        
         // Add image to container
         container.appendChild(img);
+        
+        // Style the container
+        container.style.position = 'absolute';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.overflow = 'hidden';
         
         // Add container to placeholder
         placeholder.appendChild(container);
         
-        // Set up edit overlay
-        this.setupEditOverlay(placeholder);
+        // Add edit overlay
+        this.addEditOverlay(placeholder);
     }
 
     addEditOverlay(placeholder, cardId) {
@@ -1337,6 +1365,65 @@ class PhotoLayoutEditor {
                 this.setupDropZone(placeholder, cardId);
             }
         }
+    }
+
+    setupEditOverlay(placeholder) {
+        // Remove any existing overlay
+        const existingOverlay = placeholder.querySelector('.edit-overlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+
+        // Create edit overlay
+        const editOverlay = document.createElement('div');
+        editOverlay.className = 'edit-overlay';
+        
+        // Create delete button
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-btn';
+        deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteButton.onclick = () => this.deleteImage(placeholder);
+        
+        // Create edit button
+        const editButton = document.createElement('button');
+        editButton.className = 'edit-btn';
+        editButton.innerHTML = '<i class="fas fa-edit"></i>';
+        editButton.onclick = () => this.editImage(placeholder);
+        
+        // Add buttons to overlay
+        editOverlay.appendChild(editButton);
+        editOverlay.appendChild(deleteButton);
+        
+        // Add overlay to placeholder
+        placeholder.appendChild(editOverlay);
+    }
+
+    deleteImage(placeholder) {
+        const imageContainer = placeholder.querySelector('.image-container');
+        if (imageContainer) {
+            imageContainer.remove();
+        }
+        
+        const editOverlay = placeholder.querySelector('.edit-overlay');
+        if (editOverlay) {
+            editOverlay.remove();
+        }
+
+        // Update session state
+        const cardId = placeholder.id;
+        const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+        const card = this.sessionManager.getCard(pageNumber, cardId);
+        if (card) {
+            card.image = null;
+            card.imageSettings = null;
+            this.sessionManager.saveState('Delete Image');
+        }
+    }
+
+    editImage(placeholder) {
+        // Implement image editing functionality
+        // This can be expanded later with rotation, zoom, etc.
+        console.log('Edit image functionality to be implemented');
     }
 }
 
