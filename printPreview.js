@@ -219,24 +219,44 @@ class PrintPreview {
     prepareContent(content) {
         const clone = content.cloneNode(true);
         
-        // Only remove edit overlays and maintain the page structure
+        // Remove edit overlays
         clone.querySelectorAll('.edit-overlay').forEach(o => o.remove());
 
-        // Keep the original page structure but remove interaction styles
+        // Process photo placeholders
         clone.querySelectorAll('.photo-placeholder').forEach(p => {
-            // Only remove the border and hover effects, keep the original positioning and content
-            p.style.border = 'none';
-            // Keep empty placeholders but make them invisible
-            if (!p.querySelector('img')) {
-                p.style.visibility = 'hidden';
+            const hasImage = p.querySelector('img');
+            if (hasImage) {
+                // If there's an image, keep only essential positioning styles
+                const essentialStyles = {
+                    position: p.style.position,
+                    width: p.style.width,
+                    height: p.style.height,
+                    left: p.style.left,
+                    top: p.style.top
+                };
+                
+                // Clear all styles and reapply only essential ones
+                p.removeAttribute('style');
+                Object.assign(p.style, essentialStyles);
+                
+                // Remove any background or border styles
+                p.style.background = 'none';
+                p.style.border = 'none';
+                p.style.boxShadow = 'none';
+            } else {
+                // If no image, remove the placeholder completely
+                p.remove();
             }
         });
 
-        // Maintain the original page background and structure
+        // Ensure clean page background
         if (clone.classList.contains('a4-page')) {
+            clone.style.background = 'white';
             clone.style.margin = '0';
-            clone.style.height = '297mm'; // Ensure full height is maintained
-            clone.style.minHeight = '297mm'; // Ensure minimum height
+            clone.style.padding = '5mm';
+            clone.style.height = '297mm';
+            clone.style.width = '210mm';
+            clone.style.boxShadow = 'none';
         }
 
         return clone;
