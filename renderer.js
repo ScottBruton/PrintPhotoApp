@@ -388,6 +388,28 @@ class PhotoLayoutEditor {
                 
                 const imgElement = document.createElement('img');
                 imgElement.src = imageData.src;
+                
+                // Get card dimensions from session state
+                const card = this.sessionManager.getCard(pageNumber, cardId);
+                
+                // Set initial image styles for proper fitting
+                const containerAspect = card.size.width / card.size.height;
+                const imageAspect = imageData.originalWidth / imageData.originalHeight;
+                
+                if (containerAspect > imageAspect) {
+                    imgElement.style.width = '100%';
+                    imgElement.style.height = 'auto';
+                } else {
+                    imgElement.style.width = 'auto';
+                    imgElement.style.height = '100%';
+                }
+                
+                // Position image initially at center
+                imgElement.style.position = 'absolute';
+                imgElement.style.left = '50%';
+                imgElement.style.top = '50%';
+                imgElement.style.transform = 'translate(-50%, -50%)';
+                
                 container.appendChild(imgElement);
                 
                 // Clear placeholder and add container
@@ -403,9 +425,6 @@ class PhotoLayoutEditor {
                 editButton.onclick = () => this.setupImageEditor(container);
                 editOverlay.appendChild(editButton);
                 placeholder.appendChild(editOverlay);
-                
-                // Initial fit
-                this.fitImageToContainer(imgElement, container);
             };
             img.src = event.target.result;
         };
@@ -669,11 +688,17 @@ class PhotoLayoutEditor {
         const editorModal = document.getElementById('imageEditorModal');
         const preview = document.getElementById('imageEditorPreview');
         const img = container.querySelector('img');
+        const placeholder = container.closest('.photo-placeholder');
+        const cardId = placeholder.id;
+        const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+        
+        // Get current settings from session state
+        const card = this.sessionManager.getCard(pageNumber, cardId);
         const editState = {
-            zoom: 100,
-            rotation: 0,
-            translateX: 0,
-            translateY: 0
+            zoom: card.imageSettings.zoom || 100,
+            rotation: card.imageSettings.rotation || 0,
+            translateX: card.imageSettings.translateX || 0,
+            translateY: card.imageSettings.translateY || 0
         };
         
         const history = [];
@@ -686,60 +711,78 @@ class PhotoLayoutEditor {
         previewContainer.appendChild(imgClone);
         preview.appendChild(previewContainer);
         
+        // Initialize preview with current settings
+        const updatePreview = () => {
+            const transform = [];
+            transform.push('translate(-50%, -50%)'); // Center the image
+            
+            if (editState.translateX || editState.translateY) {
+                transform.push(`translate(${editState.translateX}px, ${editState.translateY}px)`);
+            }
+            
+            if (editState.rotation) {
+                transform.push(`rotate(${editState.rotation}deg)`);
+            }
+            
+            if (editState.zoom) {
+                transform.push(`scale(${editState.zoom / 100})`);
+            }
+            
+            imgClone.style.transform = transform.join(' ');
+        };
+        
         const saveState = () => {
             history.splice(historyIndex + 1);
             history.push({ ...editState });
             historyIndex++;
+            
+            // Save to session state
+            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
         };
         
-        const updateImage = () => {
-            imgClone.style.transform = `
-                translate(-50%, -50%)
-                translate(${editState.translateX}px, ${editState.translateY}px)
-                rotate(${editState.rotation}deg)
-                scale(${editState.zoom / 100})
-            `;
-        };
+        // Initialize controls with current values
+        const zoomInput = document.getElementById('imageZoom');
+        const rotationInput = document.getElementById('imageRotation');
+        zoomInput.value = editState.zoom;
+        rotationInput.value = editState.rotation;
         
         // Zoom control
-        const zoomInput = document.getElementById('imageZoom');
         zoomInput.oninput = (e) => {
             editState.zoom = parseInt(e.target.value);
-            updateImage();
+            updatePreview();
         };
         
         // Rotation control
-        const rotationInput = document.getElementById('imageRotation');
         rotationInput.oninput = (e) => {
             editState.rotation = parseInt(e.target.value);
-            updateImage();
+            updatePreview();
         };
         
         document.getElementById('rotateLeft').onclick = () => {
             editState.rotation = (editState.rotation - 90 + 360) % 360;
             rotationInput.value = editState.rotation;
-            updateImage();
+            updatePreview();
             saveState();
         };
         
         document.getElementById('rotateRight').onclick = () => {
             editState.rotation = (editState.rotation + 90) % 360;
             rotationInput.value = editState.rotation;
-            updateImage();
+            updatePreview();
             saveState();
         };
         
         document.getElementById('fitImage').onclick = () => {
             editState.zoom = 100;
             zoomInput.value = 100;
-            updateImage();
+            updatePreview();
             saveState();
         };
         
         document.getElementById('fillImage').onclick = () => {
             editState.zoom = 200;
             zoomInput.value = 200;
-            updateImage();
+            updatePreview();
             saveState();
         };
         
@@ -747,7 +790,11 @@ class PhotoLayoutEditor {
             if (historyIndex > 0) {
                 historyIndex--;
                 Object.assign(editState, history[historyIndex]);
-                updateImage();
+                zoomInput.value = editState.zoom;
+                rotationInput.value = editState.rotation;
+                updatePreview();
+                // Update session state
+                this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
             }
         };
         
@@ -755,12 +802,36 @@ class PhotoLayoutEditor {
             if (historyIndex < history.length - 1) {
                 historyIndex++;
                 Object.assign(editState, history[historyIndex]);
-                updateImage();
+                zoomInput.value = editState.zoom;
+                rotationInput.value = editState.rotation;
+                updatePreview();
+                // Update session state
+                this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
             }
         };
         
         document.getElementById('applyChanges').onclick = () => {
-            img.style.transform = imgClone.style.transform;
+            // Apply final transform to original image
+            const transform = [];
+            transform.push('translate(-50%, -50%)');
+            
+            if (editState.translateX || editState.translateY) {
+                transform.push(`translate(${editState.translateX}px, ${editState.translateY}px)`);
+            }
+            
+            if (editState.rotation) {
+                transform.push(`rotate(${editState.rotation}deg)`);
+            }
+            
+            if (editState.zoom) {
+                transform.push(`scale(${editState.zoom / 100})`);
+            }
+            
+            img.style.transform = transform.join(' ');
+            
+            // Save final state to session
+            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+            
             editorModal.style.display = 'none';
         };
         
@@ -782,7 +853,7 @@ class PhotoLayoutEditor {
             if (isDragging) {
                 editState.translateX = e.clientX - startX;
                 editState.translateY = e.clientY - startY;
-                updateImage();
+                updatePreview();
             }
         };
         
@@ -793,6 +864,8 @@ class PhotoLayoutEditor {
             }
         };
         
+        // Initialize preview with current settings
+        updatePreview();
         saveState(); // Save initial state
         editorModal.style.display = 'block';
     }
