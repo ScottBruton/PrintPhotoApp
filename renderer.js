@@ -35,7 +35,7 @@ class SessionStateManager {
                     zoom: 100,
                     translateX: 0,
                     translateY: 0,
-                    fit: 'contain' // or 'cover'
+                    fit: 'contain'
                 }
             };
             page.cards.push(card);
@@ -53,6 +53,16 @@ class SessionStateManager {
                 originalWidth: imageData.originalWidth,
                 originalHeight: imageData.originalHeight
             };
+            // Keep existing image settings if they exist, otherwise initialize them
+            if (!card.imageSettings) {
+                card.imageSettings = {
+                    rotation: 0,
+                    zoom: 100,
+                    translateX: 0,
+                    translateY: 0,
+                    fit: 'contain'
+                };
+            }
             return true;
         }
         return false;
@@ -96,7 +106,7 @@ class SessionStateManager {
         return this.sessionData;
     }
 
-    // Load session state (useful for undo/redo)
+    // Load session state
     loadSessionState(state) {
         this.sessionData = JSON.parse(JSON.stringify(state));
     }
@@ -372,8 +382,30 @@ class PhotoLayoutEditor {
                 const pageNumber = this.sessionManager.sessionData.currentPage + 1;
                 this.sessionManager.setCardImage(pageNumber, cardId, imageData);
                 
-                // Update DOM
-                this.updateCardDisplay(placeholder, imageData);
+                // Create container and setup image
+                const container = document.createElement('div');
+                container.className = 'image-container';
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = imageData.src;
+                container.appendChild(imgElement);
+                
+                // Clear placeholder and add container
+                placeholder.innerHTML = '';
+                placeholder.appendChild(container);
+                
+                // Add edit overlay
+                const editOverlay = document.createElement('div');
+                editOverlay.className = 'edit-overlay';
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-btn';
+                editButton.innerHTML = '✎';
+                editButton.onclick = () => this.setupImageEditor(container);
+                editOverlay.appendChild(editButton);
+                placeholder.appendChild(editOverlay);
+                
+                // Initial fit
+                this.fitImageToContainer(imgElement, container);
             };
             img.src = event.target.result;
         };
@@ -408,50 +440,6 @@ class PhotoLayoutEditor {
                 }
             }
         });
-    }
-
-    addImageToPlaceholder(placeholder, imageData) {
-        const container = document.createElement('div');
-        container.className = 'image-container';
-        
-        const img = document.createElement('img');
-        img.src = imageData;
-        
-        const editOverlay = document.createElement('div');
-        editOverlay.className = 'edit-overlay';
-        const editButton = document.createElement('button');
-        editButton.className = 'edit-btn';
-        editButton.innerHTML = '✎';
-        editButton.onclick = () => this.setupImageEditor(container);
-        editOverlay.appendChild(editButton);
-        
-        container.appendChild(img);
-        placeholder.innerHTML = '';
-        placeholder.appendChild(container);
-        placeholder.appendChild(editOverlay);
-        
-        // Initial fit
-        this.fitImageToContainer(img, container);
-    }
-
-    fitImageToContainer(img, container) {
-        img.onload = () => {
-            const containerAspect = container.offsetWidth / container.offsetHeight;
-            const imageAspect = img.naturalWidth / img.naturalHeight;
-            
-            if (containerAspect > imageAspect) {
-                img.style.width = '100%';
-                img.style.height = 'auto';
-            } else {
-                img.style.width = 'auto';
-                img.style.height = '100%';
-            }
-            
-            // Center the image
-            img.style.left = '50%';
-            img.style.top = '50%';
-            img.style.transform = 'translate(-50%, -50%)';
-        };
     }
 
     showSizeModal(isEdit = false) {
@@ -543,14 +531,43 @@ class PhotoLayoutEditor {
                         const img = document.createElement('img');
                         img.src = card.image.src;
                         
+                        // Set initial image styles for proper fitting
+                        const containerAspect = card.size.width / card.size.height;
+                        const imageAspect = card.image.originalWidth / card.image.originalHeight;
+                        
+                        if (containerAspect > imageAspect) {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                        } else {
+                            img.style.width = 'auto';
+                            img.style.height = '100%';
+                        }
+                        
+                        // Position image initially at center
+                        img.style.position = 'absolute';
+                        img.style.left = '50%';
+                        img.style.top = '50%';
+                        
                         // Apply stored image settings
                         if (card.imageSettings) {
-                            img.style.transform = `
-                                translate(-50%, -50%)
-                                translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)
-                                rotate(${card.imageSettings.rotation}deg)
-                                scale(${card.imageSettings.zoom / 100})
-                            `;
+                            const transform = [];
+                            transform.push('translate(-50%, -50%)'); // Center the image
+                            
+                            if (card.imageSettings.translateX || card.imageSettings.translateY) {
+                                transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
+                            }
+                            
+                            if (card.imageSettings.rotation) {
+                                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
+                            }
+                            
+                            if (card.imageSettings.zoom) {
+                                transform.push(`scale(${card.imageSettings.zoom / 100})`);
+                            }
+                            
+                            img.style.transform = transform.join(' ');
+                        } else {
+                            img.style.transform = 'translate(-50%, -50%)';
                         }
                         
                         container.appendChild(img);
@@ -837,7 +854,7 @@ class PhotoLayoutEditor {
         }
     }
 
-    setupDropZone(placeholder) {
+    setupDropZone(placeholder, cardId) {
         placeholder.addEventListener('dragover', e => {
             e.preventDefault();
             placeholder.classList.add('dragover');
@@ -850,23 +867,7 @@ class PhotoLayoutEditor {
         placeholder.addEventListener('drop', e => {
             e.preventDefault();
             placeholder.classList.remove('dragover');
-            
-            const file = e.dataTransfer.files[0];
-            if (!file || !file.type.startsWith('image/')) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = document.createElement('img');
-                img.src = event.target.result;
-                
-                // Clear placeholder and add image
-                placeholder.innerHTML = '';
-                placeholder.appendChild(img);
-                
-                // Add edit overlay
-                this.addEditOverlay(placeholder);
-            };
-            reader.readAsDataURL(file);
+            this.handleImageDrop(e, placeholder, cardId);
         });
     }
 
