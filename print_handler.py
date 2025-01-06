@@ -6,16 +6,34 @@ import os
 
 class PrintHandler:
     @staticmethod
+    def is_virtual_printer(printer_name):
+        virtual_printers = [
+            "Microsoft Print to PDF",
+            "Microsoft XPS Document Writer",
+            "OneNote",
+            "OneNote for Windows 10",
+            "Fax",
+            "Adobe PDF",
+            "PDFCreator",
+            "PDF24",
+            "Foxit Reader PDF Printer",
+            "Microsoft OneNote"
+        ]
+        return any(vp.lower() in printer_name.lower() for vp in virtual_printers)
+
+    @staticmethod
     def get_printers():
         printers = []
         try:
             for printer in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS):
-                printer_info = {
-                    'name': printer[2],
-                    'isDefault': printer[2] == win32print.GetDefaultPrinter(),
-                    'status': printer[1]
-                }
-                printers.append(printer_info)
+                # Only add the printer if it's not a virtual printer
+                if not PrintHandler.is_virtual_printer(printer[2]):
+                    printer_info = {
+                        'name': printer[2],
+                        'isDefault': printer[2] == win32print.GetDefaultPrinter(),
+                        'status': printer[1]
+                    }
+                    printers.append(printer_info)
             return json.dumps({'success': True, 'printers': printers})
         except Exception as e:
             return json.dumps({'success': False, 'error': str(e)})
