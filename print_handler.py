@@ -28,12 +28,22 @@ class PrintHandler:
             for printer in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS):
                 # Only add the printer if it's not a virtual printer
                 if not PrintHandler.is_virtual_printer(printer[2]):
-                    printer_info = {
-                        'name': printer[2],
-                        'isDefault': printer[2] == win32print.GetDefaultPrinter(),
-                        'status': printer[1]
-                    }
-                    printers.append(printer_info)
+                    # Get detailed printer info
+                    h_printer = win32print.OpenPrinter(printer[2])
+                    try:
+                        printer_info = win32print.GetPrinter(h_printer, 2)  # Level 2 gives us detailed info
+                        status = printer_info['Status']
+                        
+                        printer_data = {
+                            'name': printer[2],
+                            'isDefault': printer[2] == win32print.GetDefaultPrinter(),
+                            'status': status,
+                            'attributes': printer_info.get('Attributes', 0)
+                        }
+                        printers.append(printer_data)
+                    finally:
+                        win32print.ClosePrinter(h_printer)
+                        
             return json.dumps({'success': True, 'printers': printers})
         except Exception as e:
             return json.dumps({'success': False, 'error': str(e)})
