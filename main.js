@@ -29,12 +29,15 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
+    show: false,
   });
 
   mainWindow.loadFile("index.html");
 
   // Wait for window to be ready
   mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow.maximize();
+    mainWindow.show();
     console.log("Window loaded and ready");
   });
 

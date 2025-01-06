@@ -7,38 +7,118 @@ body {
     padding: 20px;
     background-color: #f0f0f0;
     font-family: Arial, sans-serif;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+#pageContainer {
+    height: calc(100vh - 80px);  /* Account for toolbar and padding */
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
 }
 
 .toolbar {
     display: flex;
-    justify-content: space-between;
-    padding: 10px;
+    align-items: center;
+    padding: 12px 16px;
     background-color: #fff;
-    border-radius: 5px;
-    margin-bottom: 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    gap: 16px;
+    justify-content: center;
 }
 
-.toolbar-btn {
-    padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+.toolbar-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toolbar-center {
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
 .page-navigation {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto 10px auto;
+    background-color: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: fit-content;
+}
+
+.toolbar-btn {
+    height: 36px;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #0056a0 0%, #00c6d0 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 86, 160, 0.2);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+}
+
+#pageIndicator {
+    font-size: 13px;
+    color: #444;
+    margin: 0 12px;
+    min-width: 80px;
+    text-align: center;
+    font-weight: 500;
 }
 
 .nav-btn {
-    padding: 5px 10px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    height: 36px;
+    padding: 0 12px;
+    background: white;
+    border: 1.5px solid #0056a0;
+    border-radius: 6px;
     cursor: pointer;
+    color: #0056a0;
+    font-weight: 500;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px #2f2f2f4d;
+    background: linear-gradient(135deg, #00c6d0 0%, #0056a0 100%);
+}
+
+.toolbar-btn:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px #2f2f2f4d;
+}
+
+.toolbar-btn:disabled {
+    background: linear-gradient(135deg, #ccc 0%, #ddd 100%);
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
 }
 
 .a4-page {
@@ -83,31 +163,37 @@ body {
 }
 
 .edit-btn, .delete-btn {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 4px;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.edit-btn:hover, .delete-btn:hover {
-    background: #fff;
+.edit-btn {
+    color: #4facfe;
+}
+
+.edit-btn:hover {
+    background: #4facfe;
+    color: white;
+    transform: rotate(15deg);
 }
 
 .delete-btn {
-    color: #dc3545;
+    color: #ff6b6b;
 }
 
 .delete-btn:hover {
-    background: #dc3545;
+    background: #ff6b6b;
     color: white;
-    border-color: #dc3545;
+    transform: rotate(-15deg);
 }
 
 .image-editor-controls {
@@ -267,14 +353,111 @@ body {
     background-color: #0056b3;
 }
 
-.toolbar-left {
-    display: flex;
-    gap: 10px;
+.apply-size-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
-.toolbar-center {
+.size-options button.selected {
+    background-color: #e3f2fd;
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.custom-size-header {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.custom-size-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.custom-size-header input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.custom-size-section {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.custom-size-section.enabled {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Add these styles for custom size validation */
+.input-group input.invalid {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.validation-message {
+    color: #dc3545;
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+}
+
+.validation-message.show {
+    display: block;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.close-btn:hover {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: #4facfe;
+    color: white;
+    transform: scale(1.05);
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.nav-btn:disabled {
+    border-color: #ccc;
+    color: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 #imageEditorPreview {
