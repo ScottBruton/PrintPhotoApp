@@ -41,7 +41,7 @@ class PrintManager {
       if (result.success) {
         this.printerList = result.printers.map((printer) => ({
           ...printer,
-          statusText: this.getPrinterStatusText(printer.status),
+          statusText: this.getPrinterStatusText(printer.status, printer.name),
         }));
         this.updatePrinterDropdown();
       } else {
@@ -52,8 +52,23 @@ class PrintManager {
     }
   }
 
-  getPrinterStatusText(status) {
-    // Windows printer status codes
+  getPrinterStatusText(status, printerName) {
+    // List of known virtual printers
+    const virtualPrinters = [
+      "Microsoft Print to PDF",
+      "Microsoft XPS Document Writer",
+      "OneNote",
+      "OneNote for Windows 10",
+      "Fax",
+      "Adobe PDF",
+    ];
+
+    // Check if this is a virtual printer
+    if (virtualPrinters.some((vp) => printerName.includes(vp))) {
+      return { text: "Virtual Printer", ready: true };
+    }
+
+    // Windows printer status codes for physical printers
     const statusCodes = {
       0: { text: "Ready", ready: true },
       1: { text: "Paused", ready: false },
@@ -97,18 +112,32 @@ class PrintManager {
       printer.name.toLowerCase().includes(searchTerm)
     );
 
+    // Sort printers: Physical printers first, then virtual printers
+    const sortedPrinters = filteredPrinters.sort((a, b) => {
+      const aIsVirtual = a.statusText.text === "Virtual Printer";
+      const bIsVirtual = b.statusText.text === "Virtual Printer";
+      if (aIsVirtual && !bIsVirtual) return 1;
+      if (!aIsVirtual && bIsVirtual) return -1;
+      return a.name.localeCompare(b.name);
+    });
+
     // Clear existing options
     select.innerHTML = "";
 
     // Add filtered printers to dropdown
-    filteredPrinters.forEach((printer) => {
+    sortedPrinters.forEach((printer) => {
       const option = document.createElement("option");
       option.value = printer.name;
 
       // Create status indicator
-      const statusDot = printer.statusText.ready ? "🟢" : "🔴";
-      option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
+      let statusDot;
+      if (printer.statusText.text === "Virtual Printer") {
+        statusDot = "🔵"; // Blue dot for virtual printers
+      } else {
+        statusDot = printer.statusText.ready ? "🟢" : "🔴";
+      }
 
+      option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
       select.appendChild(option);
     });
   }
@@ -566,7 +595,7 @@ class PrintManager {
         // Update the printer list with new status information
         this.printerList = result.printers.map((printer) => ({
           ...printer,
-          statusText: this.getPrinterStatusText(printer.status),
+          statusText: this.getPrinterStatusText(printer.status, printer.name),
         }));
 
         // Update the dropdown to reflect new status
