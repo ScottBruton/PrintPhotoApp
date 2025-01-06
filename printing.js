@@ -15,7 +15,9 @@ class PrintManager {
 
     this.setupToastContainer();
     this.printerStatusInterval = null;
-    this.initializePrinterMonitoring();
+
+    // Remove initializePrinterMonitoring from constructor
+    // We'll call it after dialog is created instead
 
     // Clean up interval when window is closed
     window.addEventListener("beforeunload", () => {
@@ -25,17 +27,17 @@ class PrintManager {
     });
   }
 
-  initializePrinterMonitoring() {
-    // Initial printer load
-    this.refreshPrinters();
-    // Update printer status every 30 seconds
-    this.printerStatusInterval = setInterval(() => {
-      this.updatePrinterStatuses();
-    }, 30000);
-  }
-
   async refreshPrinters() {
     try {
+      // Only proceed if dialog exists
+      if (!this.dialog) return;
+
+      // Show loading indicator
+      const refreshButton = this.dialog.querySelector("#refreshPrinters");
+      const originalContent = refreshButton.innerHTML;
+      refreshButton.innerHTML = "🔄 Scanning...";
+      refreshButton.disabled = true;
+
       // Get printers from Windows API
       const result = await window.electron.winPrint.getPrinters();
       if (result.success) {
@@ -43,12 +45,23 @@ class PrintManager {
           ...printer,
           statusText: this.getPrinterStatusText(printer.status, printer.name),
         }));
+
+        // Update the dropdown
         this.updatePrinterDropdown();
+
+        // Show success message
+        this.showToast(`Found ${this.printerList.length} printers`);
       } else {
         console.error("Failed to get printers:", result.error);
+        this.showToast("Failed to refresh printer list");
       }
+
+      // Restore refresh button
+      refreshButton.innerHTML = originalContent;
+      refreshButton.disabled = false;
     } catch (error) {
       console.error("Error refreshing printers:", error);
+      this.showToast("Error refreshing printer list");
     }
   }
 
@@ -259,6 +272,8 @@ class PrintManager {
   async showPrintDialog(contentToprint) {
     if (!this.dialog) {
       this.createPrintDialog();
+      // Initialize printer monitoring after dialog is created
+      this.initializePrinterMonitoring();
     }
 
     // Initialize print preview if not already done
@@ -628,6 +643,22 @@ class PrintManager {
       clearInterval(this.printerStatusInterval);
       this.printerStatusInterval = null;
     }
+  }
+
+  // Add this method to show more detailed printer info
+  showPrinterDetails(printer) {
+    const details = [
+      `Status: ${printer.statusText.text}`,
+      `Type: ${printer.isNetwork ? "Network" : "Local"}`,
+      printer.location ? `Location: ${printer.location}` : null,
+      printer.isShared ? "Shared printer" : null,
+      printer.error ? `Warning: ${printer.error}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    // Show details in a tooltip or info panel
+    console.log(`Printer details for ${printer.name}:`, details);
   }
 }
 
