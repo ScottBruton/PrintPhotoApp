@@ -10,10 +10,6 @@
 <body>
     <div class="toolbar">
         <div class="toolbar-left">
-            <button id="resetProject" class="toolbar-btn reset-btn">
-                <img src="asset/reset.svg" alt="Reset" style="width: 16px; height: 16px; margin-right: 4px;">
-                Reset
-            </button>
             <button id="addPage" class="toolbar-btn">+ Add Page</button>
             <button id="editSize" class="toolbar-btn">Edit Size</button>
             <button id="saveLayout" class="toolbar-btn">Save</button>
@@ -25,7 +21,12 @@
             <button id="undo" class="toolbar-btn">↶ Undo</button>
             <button id="redo" class="toolbar-btn">↷ Redo</button>
         </div>
-       
+        <div class="toolbar-right">
+            <button id="resetProject" class="toolbar-btn reset-btn">
+                <img src="asset/reset.svg" alt="Reset" style="width: 16px; height: 16px; margin-right: 4px;">
+                Reset
+            </button>
+        </div>
     </div>
 
     <div class="page-navigation">
@@ -33,7 +34,7 @@
         <span id="pageIndicator">Page 1 of 1</span>
         <button id="nextPage" class="nav-btn">→</button>
     </div>
-    
+
     <div id="pageContainer">
         <div id="a4Page" class="a4-page">
             <!-- Photo placeholders will be added here dynamically -->
