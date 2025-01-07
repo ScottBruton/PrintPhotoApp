@@ -640,4 +640,35 @@ body {
 .close-btn:hover {
     background-color: #f0f0f0;
     color: #333;
+}
+
+.page-delete-btn {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    background: #ff6b6b;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    opacity: 0;
+}
+
+.a4-page:hover .page-delete-btn {
+    opacity: 1;
+}
+
+.page-delete-btn:hover {
+    background: #ff4f4f;
+    transform: scale(1.1);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 } 

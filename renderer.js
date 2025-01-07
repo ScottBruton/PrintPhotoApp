@@ -393,6 +393,16 @@ class PhotoLayoutEditor {
             }
             page.cards = []; // Clear existing cards
         }
+
+        // Add delete button to page
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'page-delete-btn';
+        deleteBtn.innerHTML = '×';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.deletePage(pageNumber + 1);
+        };
+        this.pageContainer.appendChild(deleteBtn);
         
         // Create placeholders
         for (let row = 0; row < rows; row++) {
@@ -428,6 +438,38 @@ class PhotoLayoutEditor {
         
         // Close the modal
         this.modal.style.display = 'none';
+    }
+
+    deletePage(pageNumber) {
+        if (this.sessionManager.sessionData.pages.length <= 1) {
+            alert('Cannot delete the last page. At least one page must remain.');
+            return;
+        }
+
+        const confirmed = confirm('Are you sure you want to delete this page?');
+        if (confirmed) {
+            // Remove the page from session data
+            this.sessionManager.sessionData.pages = this.sessionManager.sessionData.pages.filter(
+                page => page.pageNumber !== pageNumber
+            );
+
+            // Renumber remaining pages
+            this.sessionManager.sessionData.pages.forEach((page, index) => {
+                page.pageNumber = index + 1;
+            });
+
+            // Update current page if necessary
+            if (this.sessionManager.sessionData.currentPage >= this.sessionManager.sessionData.pages.length) {
+                this.sessionManager.sessionData.currentPage = this.sessionManager.sessionData.pages.length - 1;
+            }
+
+            // Save state
+            this.sessionManager.saveState('Delete Page');
+
+            // Update the view
+            this.updatePageIndicator();
+            this.navigatePage(0); // Refresh current page view
+        }
     }
 
     handleImageDrop(e, placeholder, cardId) {
@@ -571,6 +613,16 @@ class PhotoLayoutEditor {
             if (currentPage && currentPage.pageSize) {
                 // Clear the current page container
                 this.pageContainer.innerHTML = '';
+
+                // Add delete button to page
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'page-delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.deletePage(newPage + 1);
+                };
+                this.pageContainer.appendChild(deleteBtn);
                 
                 // Recreate the layout with the page's size
                 const [width, height] = currentPage.pageSize.split('x').map(n => parseInt(n));
@@ -615,11 +667,11 @@ class PhotoLayoutEditor {
                         const imageAspect = card.image.originalWidth / card.image.originalHeight;
                         
                         if (containerAspect > imageAspect) {
-                            img.style.width = '100%';
-                            img.style.height = 'auto';
-                        } else {
                             img.style.width = 'auto';
                             img.style.height = '100%';
+                        } else {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
                         }
                         
                         // Position image initially at center
