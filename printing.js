@@ -27,6 +27,21 @@ class PrintManager {
     });
   }
 
+  initializePrinterMonitoring() {
+    // Clear any existing interval
+    if (this.printerStatusInterval) {
+      clearInterval(this.printerStatusInterval);
+    }
+
+    // Initial printer status update
+    this.updatePrinterStatuses();
+
+    // Set up periodic printer status updates
+    this.printerStatusInterval = setInterval(() => {
+      this.updatePrinterStatuses();
+    }, 5000); // Update every 5 seconds
+  }
+
   async refreshPrinters() {
     try {
       // Only proceed if dialog exists
