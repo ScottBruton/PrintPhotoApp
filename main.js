@@ -25,7 +25,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     show: false,
-    icon: path.join(__dirname, "asset/scoBroPrints.svg"),
+    icon: path.join(__dirname, "asset/scoBroPrints.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
