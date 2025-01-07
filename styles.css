@@ -671,4 +671,22 @@ body {
     background: #ff4f4f;
     transform: scale(1.1);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.reset-btn {
+    background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%) !important;
+    margin-right: 16px;
+}
+
+.reset-btn:hover {
+    background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%) !important;
+}
+
+.reset-btn img {
+    filter: brightness(0) invert(1);
+    transition: transform 0.3s ease;
+}
+
+.reset-btn:hover img {
+    transform: rotate(180deg);
 } 

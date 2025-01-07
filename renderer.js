@@ -190,6 +190,9 @@ class PhotoLayoutEditor {
         this.prevPageBtn.addEventListener('click', () => this.navigatePage(-1));
         this.nextPageBtn.addEventListener('click', () => this.navigatePage(1));
         
+        // Add reset button event listener
+        document.getElementById('resetProject').addEventListener('click', () => this.resetProject());
+
         // Add edit size button event listener
         document.getElementById('editSize').addEventListener('click', () => this.showSizeModal(true));
         
@@ -1496,6 +1499,30 @@ class PhotoLayoutEditor {
         // Implement image editing functionality
         // This can be expanded later with rotation, zoom, etc.
         console.log('Edit image functionality to be implemented');
+    }
+
+    resetProject() {
+        const confirmed = confirm('Are you sure you want to reset the project? This will delete all pages and cannot be undone.');
+        if (confirmed) {
+            // Reset session data
+            this.sessionManager.sessionData = {
+                pages: [],
+                currentPage: 0
+            };
+
+            // Clear history
+            this.sessionManager.history = [];
+            this.sessionManager.currentHistoryIndex = -1;
+
+            // Create initial page
+            this.addNewPage();
+
+            // Update UI
+            this.updatePageIndicator();
+            
+            // Save state
+            this.sessionManager.saveState('Reset Project');
+        }
     }
 }
 
