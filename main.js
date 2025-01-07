@@ -24,15 +24,18 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false,
+    icon: path.join(__dirname, "asset/scoBroPrints.svg"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
-    show: false,
   });
 
   mainWindow.loadFile("index.html");
+  mainWindow.maximize();
+  mainWindow.show();
 
   // Wait for window to be ready
   mainWindow.webContents.on("did-finish-load", () => {
