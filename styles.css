@@ -140,6 +140,26 @@ body {
     justify-content: center;
     overflow: hidden;
     position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.photo-placeholder:not(:has(img))::after {
+    content: "+";
+    font-size: 48px;
+    color: #4facfe;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.photo-placeholder:not(:has(img)):hover {
+    border-color: #4facfe;
+    background-color: #f0f7ff;
+}
+
+.photo-placeholder:not(:has(img)):hover::after {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 .photo-placeholder img {

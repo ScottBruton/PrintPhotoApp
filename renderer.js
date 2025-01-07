@@ -1236,81 +1236,89 @@ class PhotoLayoutEditor {
 
             const file = e.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        // Get the current page number
-                        const pageNumber = this.sessionManager.sessionData.currentPage + 1;
-                        
-                        // Update the session state with the image data
-                        this.sessionManager.setCardImage(pageNumber, cardId, {
-                            src: event.target.result,
-                            originalWidth: img.width,
-                            originalHeight: img.height
-                        });
-                        
-                        // Add the image to the placeholder
-                        this.addImageToCard(placeholder, event.target.result);
-                    };
-                    img.src = event.target.result;
+                this.handleImageFile(file, placeholder, cardId);
+            }
+        });
+
+        // Add click handler for file browsing
+        placeholder.addEventListener('click', () => {
+            // Only trigger file browse if placeholder is empty
+            if (!placeholder.querySelector('img')) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.style.display = 'none';
+                
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        this.handleImageFile(file, placeholder, cardId);
+                    }
+                    // Clean up the input element
+                    document.body.removeChild(input);
                 };
-                reader.readAsDataURL(file);
+                
+                document.body.appendChild(input);
+                input.click();
             }
         });
     }
 
-    addImageToCard(placeholder, imageSrc) {
-        // Remove any existing image container
-        const existingContainer = placeholder.querySelector('.image-container');
-        if (existingContainer) {
-            existingContainer.remove();
-        }
-
-        // Create image container
-        const container = document.createElement('div');
-        container.className = 'image-container';
-        
-        // Create and set up image
-        const img = document.createElement('img');
-        img.src = imageSrc;
-        
-        // Set initial image styles for proper fitting
-        const containerRect = placeholder.getBoundingClientRect();
-        const containerAspect = containerRect.width / containerRect.height;
-        
-        img.onload = () => {
-            const imageAspect = img.naturalWidth / img.naturalHeight;
-            
-            if (containerAspect > imageAspect) {
-                img.style.width = 'auto';
-                img.style.height = '100%';
-            } else {
-                img.style.width = '100%';
-                img.style.height = 'auto';
-            }
-            
-            // Center the image
-            img.style.position = 'absolute';
-            img.style.top = '50%';
-            img.style.left = '50%';
-            img.style.transform = 'translate(-50%, -50%)';
+    handleImageFile(file, placeholder, cardId) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const imageData = {
+                    src: event.target.result,
+                    originalWidth: img.width,
+                    originalHeight: img.height
+                };
+                
+                // Update session state with the new image
+                const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+                this.sessionManager.setCardImage(pageNumber, cardId, imageData);
+                
+                // Create container and setup image
+                const container = document.createElement('div');
+                container.className = 'image-container';
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = imageData.src;
+                
+                // Get card dimensions from session state
+                const card = this.sessionManager.getCard(pageNumber, cardId);
+                
+                // Set initial image styles for proper fitting
+                const containerAspect = card.size.width / card.size.height;
+                const imageAspect = imageData.originalWidth / imageData.originalHeight;
+                
+                if (containerAspect > imageAspect) {
+                    imgElement.style.width = '100%';
+                    imgElement.style.height = 'auto';
+                } else {
+                    imgElement.style.width = 'auto';
+                    imgElement.style.height = '100%';
+                }
+                
+                // Position image initially at center
+                imgElement.style.position = 'absolute';
+                imgElement.style.left = '50%';
+                imgElement.style.top = '50%';
+                imgElement.style.transform = 'translate(-50%, -50%)';
+                
+                container.appendChild(imgElement);
+                
+                // Clear placeholder and add container
+                placeholder.innerHTML = '';
+                placeholder.appendChild(container);
+                
+                // Add edit overlay
+                this.addEditOverlay(placeholder, cardId);
+            };
+            img.src = event.target.result;
         };
-        
-        // Add image to container
-        container.appendChild(img);
-        
-        // Style the container
-        container.style.position = 'absolute';
-        container.style.width = '100%';
-        container.style.height = '100%';
-        container.style.overflow = 'hidden';
-        
-        // Add container to placeholder
-        placeholder.appendChild(container);
-        
-        // Add edit overlay
-        this.addEditOverlay(placeholder);
+        reader.readAsDataURL(file);
     }
 
     addEditOverlay(placeholder, cardId) {
