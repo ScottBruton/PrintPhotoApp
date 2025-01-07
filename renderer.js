@@ -1329,17 +1329,29 @@ class PhotoLayoutEditor {
         const deleteButton = document.createElement('button');
         deleteButton.className = 'delete-btn';
         deleteButton.innerHTML = '×';
-        deleteButton.onclick = () => this.deleteImage(placeholder, cardId);
+        deleteButton.onclick = (e) => {
+            e.stopPropagation(); // Stop event from bubbling up
+            this.deleteImage(placeholder, cardId);
+        };
         
         // Create edit button
         const editButton = document.createElement('button');
         editButton.className = 'edit-btn';
         editButton.innerHTML = '✎';
-        editButton.onclick = () => this.setupImageEditor(placeholder);
+        editButton.onclick = (e) => {
+            e.stopPropagation(); // Stop event from bubbling up
+            this.setupImageEditor(placeholder);
+        };
         
         // Add buttons to overlay
         editOverlay.appendChild(editButton);
         editOverlay.appendChild(deleteButton);
+        
+        // Prevent clicks on the overlay from triggering the placeholder click
+        editOverlay.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
         placeholder.appendChild(editOverlay);
     }
 
