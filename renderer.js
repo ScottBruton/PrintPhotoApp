@@ -303,10 +303,20 @@ class PhotoLayoutEditor {
 
         // Handle custom size validation
         customWidthInput.addEventListener('input', (e) => {
+            // Allow only numbers and backspace
+            let value = e.target.value.replace(/[^\d]/g, '');
+            if (value !== e.target.value) {
+                e.target.value = value;
+            }
             this.validateInput(e.target, 1, 210, document.getElementById('widthValidation'));
         });
 
         customHeightInput.addEventListener('input', (e) => {
+            // Allow only numbers and backspace
+            let value = e.target.value.replace(/[^\d]/g, '');
+            if (value !== e.target.value) {
+                e.target.value = value;
+            }
             this.validateInput(e.target, 1, 297, document.getElementById('heightValidation'));
         });
 
@@ -317,6 +327,9 @@ class PhotoLayoutEditor {
             customHeightInput.disabled = !e.target.checked;
             
             if (e.target.checked) {
+                // Clear input values when enabling
+                customWidthInput.value = '';
+                customHeightInput.value = '';
                 // Validate both inputs immediately when enabling
                 this.validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation'));
                 this.validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'));
