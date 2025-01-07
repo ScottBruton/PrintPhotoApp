@@ -1274,19 +1274,35 @@ class PhotoLayoutEditor {
     }
 
     setupDropZone(placeholder, cardId) {
+        let dragCounter = 0;
+
+        placeholder.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter++;
+            if (dragCounter === 1) {
+                placeholder.classList.add('dragover');
+            }
+        });
+
         placeholder.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            placeholder.classList.add('dragover');
         });
 
-        placeholder.addEventListener('dragleave', () => {
-            placeholder.classList.remove('dragover');
+        placeholder.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter--;
+            if (dragCounter === 0) {
+                placeholder.classList.remove('dragover');
+            }
         });
 
         placeholder.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            dragCounter = 0;
             placeholder.classList.remove('dragover');
 
             const file = e.dataTransfer.files[0];
