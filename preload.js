@@ -2,7 +2,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electron", {
   invoke: (channel, data) => {
-    return ipcRenderer.invoke(channel, data);
+    const validChannels = [
+      "check-for-updates",
+      "install-update",
+      "restart-app",
+      "create-main-window",
+    ];
+    if (validChannels.includes(channel)) {
+      return ipcRenderer.invoke(channel, data);
+    }
   },
   getPrinters: () => ipcRenderer.invoke("get-printers"),
   print: (content, settings) => ipcRenderer.invoke("print", content, settings),

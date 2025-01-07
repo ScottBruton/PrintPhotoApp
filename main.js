@@ -5,6 +5,7 @@ const { exec } = require("child_process");
 const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
+const UpdateChecker = require("./update-checker");
 
 try {
   if (process.argv.includes("--dev-reload")) {
@@ -19,6 +20,7 @@ try {
 
 // Store mainWindow reference
 let mainWindow = null;
+let updateWindow = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -47,6 +49,26 @@ function createWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+}
+
+function createUpdateWindow() {
+  updateWindow = new BrowserWindow({
+    width: 400,
+    height: 200,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    modal: true,
+    parent: mainWindow,
+    center: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  updateWindow.loadFile("update.html");
 }
 
 // Handle save layout
@@ -353,7 +375,45 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   }
 });
 
-app.whenReady().then(createWindow);
+// Add these IPC handlers
+ipcMain.handle("check-for-updates", async () => {
+  try {
+    const checker = new UpdateChecker();
+    const result = await checker.checkForUpdates();
+    return result;
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle("install-update", async () => {
+  try {
+    const checker = new UpdateChecker();
+    await checker.pullUpdates();
+    return { success: true };
+  } catch (error) {
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle("restart-app", () => {
+  app.relaunch();
+  app.exit();
+});
+
+// Modify the app.whenReady() handler
+app.whenReady().then(() => {
+  // Create main window first
+  createWindow();
+
+  // Then create update window
+  createUpdateWindow();
+
+  // Show update window when ready
+  updateWindow.once("ready-to-show", () => {
+    updateWindow.show();
+  });
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

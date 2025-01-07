@@ -18,7 +18,9 @@
     "nodemon": "^3.1.9"
   },
   "dependencies": {
+    "electron-updater": "^6.3.9",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2"
+    "jspdf": "^2.5.2",
+    "simple-git": "^3.27.0"
   }
 }
