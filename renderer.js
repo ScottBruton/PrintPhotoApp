@@ -222,9 +222,33 @@ class PhotoLayoutEditor {
         const customHeightInput = document.getElementById('customHeight');
         const applyCustomSizeBtn = document.getElementById('applyCustomSize');
 
+        // Validate if a size fits on an A4 page
+        const validateSize = (width, height) => {
+            const PAGE_WIDTH = 210;
+            const PAGE_HEIGHT = 297;
+            const MARGIN = 5;
+            const SPACING = 10;
+            
+            const availableWidth = PAGE_WIDTH - (2 * MARGIN);
+            const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
+            
+            const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
+            const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
+            
+            return cols > 0 && rows > 0;
+        };
+
         // Update preset size button handling
         document.querySelectorAll('.size-options button').forEach(button => {
             button.addEventListener('click', (e) => {
+                const [width, height] = e.target.dataset.size.split('x').map(n => parseInt(n));
+                
+                // Validate size immediately
+                if (!validateSize(width, height)) {
+                    alert('Selected size is too large for A4 page');
+                    return;
+                }
+
                 // Uncheck custom size checkbox if a preset is selected
                 customSizeCheckbox.checked = false;
                 customSizeSection.classList.remove('enabled');
@@ -261,8 +285,14 @@ class PhotoLayoutEditor {
 
         // Update Apply Custom Size handler
         document.getElementById('applyCustomSize').addEventListener('click', () => {
-            const width = customWidthInput.value;
-            const height = customHeightInput.value;
+            const width = parseInt(customWidthInput.value);
+            const height = parseInt(customHeightInput.value);
+            
+            // Validate custom size immediately
+            if (!validateSize(width, height)) {
+                alert('Selected size is too large for A4 page');
+                return;
+            }
             
             if (this.validateInput(customWidthInput, 1, 210, document.getElementById('widthValidation')) && 
                 this.validateInput(customHeightInput, 1, 297, document.getElementById('heightValidation'))) {
@@ -358,22 +388,6 @@ class PhotoLayoutEditor {
         const MARGIN = 5;
         const SPACING = 10;
         
-        const availableWidth = PAGE_WIDTH - (2 * MARGIN);
-        const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
-        
-        // Calculate number of cards that can fit
-        const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
-        const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
-        
-        // Validate if cards fit on page
-        if (cols <= 0 || rows <= 0) {
-            alert('Selected size is too large for A4 page');
-            return;
-        }
-
-        // Clear existing placeholders
-        this.pageContainer.innerHTML = '';
-        
         // Get or create page
         const pageNumber = this.sessionManager.sessionData.currentPage;
         let page = this.sessionManager.getPage(pageNumber + 1);
@@ -391,11 +405,14 @@ class PhotoLayoutEditor {
                 if (!proceed) {
                     page.pageSize = oldSize;
                     this.modal.style.display = 'none';
-                    return;
+                    return false;
                 }
             }
             page.cards = []; // Clear existing cards
         }
+
+        // Clear existing placeholders
+        this.pageContainer.innerHTML = '';
 
         // Add delete button to page
         const deleteBtn = document.createElement('button');
@@ -406,6 +423,12 @@ class PhotoLayoutEditor {
             this.deletePage(pageNumber + 1);
         };
         this.pageContainer.appendChild(deleteBtn);
+        
+        // Calculate grid layout
+        const availableWidth = PAGE_WIDTH - (2 * MARGIN);
+        const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
+        const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
+        const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
         
         // Create placeholders
         for (let row = 0; row < rows; row++) {
@@ -441,6 +464,7 @@ class PhotoLayoutEditor {
         
         // Close the modal
         this.modal.style.display = 'none';
+        return true;
     }
 
     deletePage(pageNumber) {
