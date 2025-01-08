@@ -20,7 +20,7 @@
   "dependencies": {
     "electron-updater": "^6.3.9",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2",
+    "jspdf": "^2.5.1",
     "simple-git": "^3.27.0"
   }
 }

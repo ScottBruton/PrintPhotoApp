@@ -17,12 +17,14 @@ contextBridge.exposeInMainWorld("electron", {
   log: {
     error: (message) => ipcRenderer.invoke("log-error", message),
   },
-  savePDF: (data) => ipcRenderer.invoke("save-pdf", data),
+  savePDF: (data) => ipcRenderer.invoke("save-print-pdf", data),
   winPrint: {
     getPrinters: () => ipcRenderer.invoke("win-get-printers"),
     setDefaultPrinter: (printerName) =>
       ipcRenderer.invoke("win-set-default-printer", printerName),
     printFile: (filePath, printerName) =>
       ipcRenderer.invoke("win-print-file", { filePath, printerName }),
+    getTempFile: (filename) => ipcRenderer.invoke("get-temp-file", filename),
   },
+  createTempPDF: (htmlContent) => ipcRenderer.invoke("create-temp-pdf", htmlContent)
 });

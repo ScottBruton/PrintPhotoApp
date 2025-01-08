@@ -141,25 +141,76 @@ class PrintPreview {
     }
 
     setPages(pages) {
-        console.log('Setting pages in print preview:', pages.length);
+        const container = document.createElement('div');
+        container.className = 'preview-container';
         
-        // Store the pages
-        this.pages = Array.from(pages).map(page => page.cloneNode(true));
-        
-        // Reset to first page
-        this.currentSettings.currentPage = 0;
-        this.currentSettings.zoom = 'auto';
-        
-        // Update the UI
-        this.showCurrentPage();
-        this.updatePageIndicator();
-        this.updateNavigationButtons();
-        
-        console.log('Print preview updated:', {
-            totalPages: this.pages.length,
-            currentPage: this.currentSettings.currentPage + 1,
-            zoom: this.currentSettings.zoom
+        pages.forEach((page, index) => {
+            const pageWrapper = document.createElement('div');
+            pageWrapper.className = 'preview-page';
+            
+            // Clone the page
+            const clonedPage = page.cloneNode(true);
+            
+            // Clean up the preview appearance
+            const placeholders = clonedPage.querySelectorAll('.photo-placeholder');
+            placeholders.forEach(placeholder => {
+                // Remove borders and background
+                placeholder.style.border = 'none';
+                placeholder.style.backgroundColor = 'transparent';
+                
+                // Hide empty placeholders
+                if (!placeholder.querySelector('img')) {
+                    placeholder.style.display = 'none';
+                }
+                
+                // Remove the plus sign (if it exists)
+                const plusSign = placeholder.querySelector('.add-photo-icon');
+                if (plusSign) {
+                    plusSign.remove();
+                }
+            });
+            
+            // Hide edit overlays
+            const editOverlays = clonedPage.querySelectorAll('.edit-overlay');
+            editOverlays.forEach(overlay => {
+                overlay.style.display = 'none';
+            });
+            
+            // Ensure images maintain their transforms and positioning
+            const images = clonedPage.querySelectorAll('.photo-placeholder img');
+            images.forEach(img => {
+                const originalImg = document.querySelector(`img[src="${img.src}"]`);
+                if (originalImg) {
+                    // Copy all relevant styles
+                    img.style.transform = originalImg.style.transform;
+                    img.style.width = originalImg.style.width;
+                    img.style.height = originalImg.style.height;
+                    img.style.position = originalImg.style.position;
+                    img.style.left = originalImg.style.left;
+                    img.style.top = originalImg.style.top;
+                    
+                    // Ensure container is properly sized
+                    const container = img.closest('.image-container');
+                    if (container) {
+                        container.style.width = '100%';
+                        container.style.height = '100%';
+                        container.style.position = 'relative';
+                    }
+                }
+            });
+            
+            pageWrapper.appendChild(clonedPage);
+            container.appendChild(pageWrapper);
         });
+        
+        this.previewContent.innerHTML = '';
+        this.previewContent.appendChild(container);
+        
+        // Update page count
+        this.pages = pages;
+        this.currentSettings.currentPage = 0;
+        this.updatePageIndicator();
+        this.showCurrentPage();
     }
 
     fitToScreen() {

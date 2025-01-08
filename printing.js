@@ -277,11 +277,163 @@ class PrintManager {
   }
 
   async createTempFile(content) {
-    // This method would create a temporary file with the content
-    // Implementation depends on your application's requirements
-    // You might want to create an HTML file, PDF, or other format
-    // Return the path to the temporary file
-    return tempPath;
+    try {
+        // Get renderer instance
+        const rendererInstance = window.rendererInstance;
+        if (!rendererInstance || !rendererInstance.sessionManager) {
+            throw new Error('Renderer instance not found');
+        }
+
+        // Store current page to restore later
+        const currentPageIndex = rendererInstance.sessionManager.sessionData.currentPage;
+
+        // Create PDF document
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            hotfixes: ['px_scaling']
+        });
+
+        // Process each page
+        for (let i = 0; i < rendererInstance.sessionManager.sessionData.pages.length; i++) {
+            // Navigate to the page to render it
+            rendererInstance.sessionManager.sessionData.currentPage = i;
+            rendererInstance.navigatePage(0);
+
+            // Wait for images to load
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Hide empty placeholders
+            const emptyPlaceholders = document.querySelectorAll('.photo-placeholder:not(:has(img))');
+            emptyPlaceholders.forEach(placeholder => {
+                placeholder.style.display = 'none';
+            });
+
+            // Remove dotted borders
+            const placeholders = document.querySelectorAll('.photo-placeholder');
+            placeholders.forEach(placeholder => {
+                placeholder.style.border = 'none';
+                placeholder.style.backgroundColor = 'transparent';
+            });
+
+            // Hide edit overlays
+            const editOverlays = document.querySelectorAll('.edit-overlay');
+            editOverlays.forEach(overlay => {
+                overlay.style.display = 'none';
+            });
+
+            // Ensure images maintain their transforms
+            const images = document.querySelectorAll('.photo-placeholder img');
+            images.forEach(img => {
+                const container = img.closest('.image-container');
+                if (container) {
+                    const placeholder = container.closest('.photo-placeholder');
+                    const cardId = placeholder.id;
+                    const card = rendererInstance.sessionManager.getCard(i + 1, cardId);
+
+                    if (card && card.imageSettings) {
+                        const transform = [];
+                        transform.push('translate(-50%, -50%)');
+
+                        if (card.imageSettings.translateX || card.imageSettings.translateY) {
+                            transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
+                        }
+
+                        if (card.imageSettings.rotation) {
+                            transform.push(`rotate(${card.imageSettings.rotation}deg)`);
+                        }
+
+                        if (card.imageSettings.zoom) {
+                            transform.push(`scale(${card.imageSettings.zoom / 100})`);
+                        }
+
+                        img.style.transform = transform.join(' ');
+                        img.style.position = 'absolute';
+                        img.style.left = '50%';
+                        img.style.top = '50%';
+
+                        // Set size based on aspect ratio
+                        const containerAspect = card.size.width / card.size.height;
+                        const imageAspect = card.image.originalWidth / card.image.originalHeight;
+
+                        if (containerAspect > imageAspect) {
+                            img.style.width = 'auto';
+                            img.style.height = '100%';
+                        } else {
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                        }
+                    }
+                }
+            });
+
+            // Capture the page with high resolution
+            const pageElement = document.getElementById('a4Page');
+            const canvas = await html2canvas(pageElement, {
+                scale: 4,  // Higher resolution
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: pageElement.offsetWidth,
+                height: pageElement.offsetHeight,
+                logging: false,
+                onclone: (clonedDoc) => {
+                    // Apply transforms to cloned images
+                    const clonedImages = clonedDoc.querySelectorAll('.photo-placeholder img');
+                    clonedImages.forEach(img => {
+                        const originalImg = document.querySelector(`img[src="${img.src}"]`);
+                        if (originalImg) {
+                            img.style.transform = originalImg.style.transform;
+                            img.style.width = originalImg.style.width;
+                            img.style.height = originalImg.style.height;
+                            img.style.position = originalImg.style.position;
+                            img.style.left = originalImg.style.left;
+                            img.style.top = originalImg.style.top;
+                        }
+                    });
+                }
+            });
+
+            // Add new page if not first page
+            if (i > 0) {
+                pdf.addPage();
+            }
+
+            // Add image to PDF (full A4 size)
+            pdf.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, 210, 297);
+
+            // Restore visibility of elements
+            emptyPlaceholders.forEach(placeholder => {
+                placeholder.style.display = 'block';
+            });
+            placeholders.forEach(placeholder => {
+                placeholder.style.border = '2px dashed #dee2e6';
+                placeholder.style.backgroundColor = '#f8f9fa';
+            });
+            editOverlays.forEach(overlay => {
+                overlay.style.display = 'block';
+            });
+        }
+
+        // Restore original page
+        rendererInstance.sessionManager.sessionData.currentPage = currentPageIndex;
+        rendererInstance.navigatePage(0);
+
+        // Save to temp file
+        const timestamp = new Date().getTime();
+        const tempPath = await window.electron.winPrint.getTempFile(`print_${timestamp}.pdf`);
+        await window.electron.savePDF({
+            path: tempPath,
+            data: pdf.output('arraybuffer')
+        });
+
+        return tempPath;
+    } catch (error) {
+        console.error('Error creating temp file:', error);
+        throw new Error(`Failed to create temporary file: ${error.message}`);
+    }
   }
 
   async showPrintDialog(contentToprint) {
@@ -674,6 +826,150 @@ class PrintManager {
 
     // Show details in a tooltip or info panel
     console.log(`Printer details for ${printer.name}:`, details);
+  }
+
+  async getPrinterStatus(printerName) {
+    try {
+        const printers = await window.electron.winPrint.getPrinters();
+        const printer = printers.find(p => p.name === printerName);
+        
+        if (!printer) {
+            return 'Unknown';
+        }
+
+        // Map Windows printer status codes to readable states
+        const statusMap = {
+            0: 'Ready',  // PRINTER_STATUS_READY
+            1: 'Paused',
+            2: 'Error',
+            3: 'Pending Deletion',
+            4: 'Paper Jam',
+            5: 'Paper Out',
+            6: 'Manual Feed',
+            7: 'Paper Problem',
+            8: 'Offline',
+            9: 'IO Active',
+            10: 'Busy',
+            11: 'Printing',
+            12: 'Output Bin Full',
+            13: 'Not Available',
+            14: 'Waiting',
+            15: 'Processing',
+            16: 'Initializing',
+            17: 'Warming Up',
+            18: 'Toner Low',
+            19: 'No Toner',
+            20: 'Page Punt',
+            21: 'User Intervention Required',
+            22: 'Out of Memory',
+            23: 'Door Open',
+            24: 'Server Unknown',
+            25: 'Power Save',
+        };
+
+        // If printer is in power save mode or warming up, consider it "Ready"
+        if (printer.status === 25 || printer.status === 17) {
+            return 'Ready';
+        }
+
+        // Return mapped status or 'Unknown' if status code isn't recognized
+        return statusMap[printer.status] || 'Unknown';
+    } catch (error) {
+        console.error('Error getting printer status:', error);
+        return 'Unknown';
+    }
+  }
+
+  async updatePrinterList() {
+    try {
+        const result = await window.electron.winPrint.getPrinters();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to get printers');
+        }
+
+        const select = this.dialog.querySelector('#printerSelect');
+        select.innerHTML = '';
+
+        for (const printer of result.printers) {
+            const status = this.interpretPrinterStatus(printer.status, printer);
+            const option = document.createElement('option');
+            option.value = printer.name;
+            
+            // Create status indicator
+            const statusColor = this.getPrinterStatusColor(status);
+            option.innerHTML = `<span style="color: ${statusColor}">●</span> ${printer.name} - ${status}`;
+            
+            // Allow all physical printers to be selected, regardless of status
+            option.disabled = false;
+            
+            select.appendChild(option);
+        }
+
+        // Show total number of printers found
+        console.log(`Found ${result.printers.length} physical printers`);
+    } catch (error) {
+        console.error('Error updating printer list:', error);
+    }
+  }
+
+  interpretPrinterStatus(statusCode, printer) {
+    // Status codes for network printers might be different
+    if (printer.isNetwork) {
+        // For network printers, assume ready unless explicitly offline
+        if (statusCode === 0) return 'Ready';
+        if (statusCode & 0x400000) return 'Offline'; // PRINTER_STATUS_OFFLINE
+        return 'Ready';  // Default to Ready for network printers
+    }
+
+    // Status mapping for local printers
+    const statusMap = {
+        0: 'Ready',
+        1: 'Paused',
+        2: 'Error',
+        3: 'Pending Deletion',
+        4: 'Paper Jam',
+        5: 'Paper Out',
+        6: 'Manual Feed',
+        7: 'Paper Problem',
+        8: 'Offline',
+        9: 'IO Active',
+        10: 'Busy',
+        11: 'Printing',
+        12: 'Output Bin Full',
+        13: 'Not Available',
+        14: 'Waiting',
+        15: 'Processing',
+        16: 'Initializing',
+        17: 'Warming Up',
+        18: 'Toner Low',
+        19: 'No Toner',
+        20: 'Page Punt',
+        21: 'User Intervention Required',
+        22: 'Out of Memory',
+        23: 'Door Open',
+        24: 'Server Unknown',
+        25: 'Power Save'
+    };
+
+    // Special cases
+    if (statusCode === 25 || statusCode === 17) return 'Ready';  // Power Save or Warming Up
+    if (printer.isReady) return 'Ready';
+
+    return statusMap[statusCode] || 'Ready';  // Default to Ready if status is unknown
+  }
+
+  getPrinterStatusColor(status) {
+    const statusColors = {
+        'Ready': '#2ecc71',      // Green
+        'Power Save': '#2ecc71', // Green
+        'Warming Up': '#2ecc71', // Green
+        'Printing': '#f1c40f',   // Yellow
+        'Busy': '#f1c40f',       // Yellow
+        'Offline': '#e74c3c',    // Red
+        'Error': '#e74c3c',      // Red
+        'Unknown': '#e74c3c'     // Red
+    };
+    return statusColors[status] || '#95a5a6'; // Default gray
   }
 }
 

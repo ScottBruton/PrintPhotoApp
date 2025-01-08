@@ -167,4 +167,24 @@
     display: none;
     z-index: 9999;
     overflow: hidden;
+}
+
+.preview-page .photo-placeholder {
+    border: none !important;
+    background: transparent !important;
+}
+
+.preview-page .add-photo-icon,
+.preview-page .edit-overlay {
+    display: none !important;
+}
+
+.preview-page .photo-placeholder:empty {
+    display: none !important;
+}
+
+.preview-page img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 } 

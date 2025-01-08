@@ -6,6 +6,9 @@ const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
 const UpdateChecker = require("./update-checker");
+const os = require('os');
+const { jsPDF } = require('jspdf');
+const html2canvas = require('html2canvas');
 
 try {
   if (process.argv.includes("--dev-reload")) {
@@ -425,4 +428,59 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+// Keep only one version of each handler
+ipcMain.handle("create-temp-pdf", async (event, htmlContent) => {
+  try {
+    const timestamp = new Date().getTime();
+    const tempPath = path.join(os.tmpdir(), `print_${timestamp}.pdf`);
+    
+    // Create PDF
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      hotfixes: ['px_scaling']
+    });
+
+    // Convert HTML content to PDF
+    const dataUrl = await event.sender.webContents.capturePage().then(image => {
+      return image.toDataURL();
+    });
+
+    // Add image to PDF
+    pdf.addImage(
+      dataUrl,
+      'PNG',
+      0,
+      0,
+      pdf.internal.pageSize.getWidth(),
+      pdf.internal.pageSize.getHeight(),
+      undefined,
+      'FAST'
+    );
+
+    // Save PDF
+    await fs.promises.writeFile(tempPath, Buffer.from(pdf.output('arraybuffer')));
+    
+    return tempPath;
+  } catch (error) {
+    console.error("Error creating PDF:", error);
+    throw error;
+  }
+});
+
+ipcMain.handle("get-temp-file", async (event, filename) => {
+    return path.join(os.tmpdir(), filename);
+});
+
+ipcMain.handle("save-print-pdf", async (event, { path: filePath, data }) => {
+    try {
+        await fs.promises.writeFile(filePath, Buffer.from(data));
+        return { success: true };
+    } catch (error) {
+        console.error("Error saving PDF:", error);
+        return { success: false, error: error.message };
+    }
 });

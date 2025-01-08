@@ -18,72 +18,67 @@ class PrintHandler:
             "PDFCreator",
             "PDF24",
             "Foxit Reader PDF Printer",
-            "Microsoft OneNote"
+            "Microsoft OneNote",
+            "Virtual Printer"
         ]
         return any(vp.lower() in printer_name.lower() for vp in virtual_printers)
 
     @staticmethod
     def get_printers():
-        printers = []
         try:
-            # Try to get both local and network printers
-            printer_flags = (
-                win32print.PRINTER_ENUM_LOCAL | 
-                win32print.PRINTER_ENUM_CONNECTIONS | 
-                win32print.PRINTER_ENUM_NETWORK
-            )
-            
-            for printer in win32print.EnumPrinters(printer_flags):
-                # Only add the printer if it's not a virtual printer
-                if not PrintHandler.is_virtual_printer(printer[2]):
+            printers = []
+            for printer in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS):
+                # Skip virtual printers
+                if PrintHandler.is_virtual_printer(printer[2]):
+                    continue
+
+                try:
+                    # Get detailed printer info
+                    h_printer = win32print.OpenPrinter(printer[2])
                     try:
-                        # Get detailed printer info
-                        h_printer = win32print.OpenPrinter(printer[2])
-                        try:
-                            # Get level 2 info for status
-                            printer_info = win32print.GetPrinter(h_printer, 2)
-                            status = printer_info['Status']
-                            
-                            # Get additional printer info
-                            printer_data = {
-                                'name': printer[2],
-                                'isDefault': printer[2] == win32print.GetDefaultPrinter(),
-                                'status': status,
-                                'attributes': printer_info.get('Attributes', 0),
-                                'isNetwork': bool(printer_info.get('Attributes', 0) & 0x00000010),  # PRINTER_ATTRIBUTE_NETWORK
-                                'isShared': bool(printer_info.get('Attributes', 0) & 0x00000008),   # PRINTER_ATTRIBUTE_SHARED
-                                'location': printer_info.get('Location', ''),
-                                'serverName': printer_info.get('ServerName', '')
-                            }
-                            printers.append(printer_data)
-                        finally:
-                            win32print.ClosePrinter(h_printer)
-                    except Exception as printer_error:
-                        # If we can't get detailed info, add basic info
-                        print(f"Warning: Could not get detailed info for {printer[2]}: {printer_error}")
-                        printer_data = {
+                        printer_info = win32print.GetPrinter(h_printer, 2)
+                        status = printer_info['Status']
+                        attributes = printer_info['Attributes']
+
+                        # Check if printer is network printer
+                        is_network = bool(attributes & win32print.PRINTER_ATTRIBUTE_NETWORK)
+                        
+                        # Check various status flags
+                        is_ready = (status == 0 or 
+                                  status & win32print.PRINTER_STATUS_POWER_SAVE or 
+                                  status & win32print.PRINTER_STATUS_WARMING_UP)
+                        
+                        # Get more detailed status information
+                        detailed_status = {
+                            'isNetwork': is_network,
+                            'status': status,
+                            'isReady': is_ready,
+                            'location': printer_info.get('Location', ''),
+                            'serverName': printer_info.get('ServerName', ''),
+                            'attributes': attributes
+                        }
+
+                        printers.append({
                             'name': printer[2],
                             'isDefault': printer[2] == win32print.GetDefaultPrinter(),
-                            'status': 0,  # Unknown status
-                            'attributes': 0,
-                            'error': str(printer_error)
-                        }
-                        printers.append(printer_data)
+                            **detailed_status
+                        })
+                    finally:
+                        win32print.ClosePrinter(h_printer)
+                except Exception as e:
+                    print(f"Error getting details for printer {printer[2]}: {str(e)}")
+                    # Add printer with basic info if detailed info fails
+                    printers.append({
+                        'name': printer[2],
+                        'isDefault': printer[2] == win32print.GetDefaultPrinter(),
+                        'status': -1,  # Unknown status
+                        'isNetwork': False,
+                        'isReady': False
+                    })
 
-            # Sort printers: Default first, then by name
-            printers.sort(key=lambda x: (-x['isDefault'], x['name'].lower()))
-            
-            return json.dumps({
-                'success': True, 
-                'printers': printers,
-                'timestamp': import_time.time()  # Add timestamp for refresh tracking
-            })
+            return json.dumps({'success': True, 'printers': printers})
         except Exception as e:
-            return json.dumps({
-                'success': False, 
-                'error': str(e),
-                'timestamp': import_time.time()
-            })
+            return json.dumps({'success': False, 'error': str(e)})
 
     @staticmethod
     def set_default_printer(printer_name):
@@ -115,6 +110,29 @@ class PrintHandler:
             return json.dumps({'success': True})
         except Exception as e:
             return json.dumps({'success': False, 'error': str(e)})
+
+    @staticmethod
+    def get_printer_status(printer_name):
+        try:
+            import win32print
+            printer = win32print.OpenPrinter(printer_name)
+            try:
+                info = win32print.GetPrinter(printer, 2)
+                status = info['Status']
+                
+                # Check if printer is in power save or warming up
+                if status & win32print.PRINTER_STATUS_POWER_SAVE:
+                    return 0  # Return as Ready
+                if status & win32print.PRINTER_STATUS_WARMING_UP:
+                    return 0  # Return as Ready
+                    
+                # Return the basic status
+                return status
+            finally:
+                win32print.ClosePrinter(printer)
+        except Exception as e:
+            print(f"Error getting printer status: {str(e)}")
+            return -1  # Unknown status
 
 if __name__ == "__main__":
     handler = PrintHandler()
