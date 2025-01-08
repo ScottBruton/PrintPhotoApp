@@ -6,14 +6,57 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
     "dev": "nodemon --watch * --exec \"electron .\"",
-    "dev-reload": "electron . --dev-reload"
+    "dev-reload": "electron . --dev-reload",
+    "build": "electron-builder build --win",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.scobro.printphotoapp",
+    "productName": "ScoBro Prints",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "asset/scoBroPrints.ico",
+      "signingHashAlgorithms": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ScoBro Prints",
+      "include": "installer.nsh",
+      "perMachine": true
+    },
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!dev-app-update.yml",
+      "!.github",
+      "print_handler.py"
+    ]
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "ScoBro Prints - Photo Layout and Printing Application",
   "devDependencies": {
     "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
     "electron-reloader": "^1.2.3",
     "nodemon": "^3.1.9"
   },

@@ -4,12 +4,26 @@ const { app } = require("electron");
 
 class UpdateChecker {
   constructor() {
-    this.git = simpleGit();
+    // Use the repo directory inside installation directory
+    const repoPath = path.join(app.getPath("userData"), "repo");
+    this.git = simpleGit(repoPath);
     this.appPath = app.getAppPath();
   }
 
   async checkForUpdates() {
     try {
+      // First check if this is a git repository
+      const isRepo = await this.git.checkIsRepo().catch(() => false);
+
+      if (!isRepo) {
+        return {
+          needsUpdate: false,
+          currentVersion: app.getVersion(),
+          remoteVersion: app.getVersion(),
+          error: "Not a git repository - updates disabled",
+        };
+      }
+
       // Fetch the latest changes from remote
       await this.git.fetch("origin", "main");
 
@@ -29,12 +43,23 @@ class UpdateChecker {
       };
     } catch (error) {
       console.error("Error checking for updates:", error);
-      throw error;
+      return {
+        needsUpdate: false,
+        currentVersion: app.getVersion(),
+        remoteVersion: app.getVersion(),
+        error: "Update check failed - updates disabled",
+      };
     }
   }
 
   async pullUpdates() {
     try {
+      const isRepo = await this.git.checkIsRepo().catch(() => false);
+
+      if (!isRepo) {
+        throw new Error("Not a git repository - updates disabled");
+      }
+
       await this.git.pull("origin", "main");
       return true;
     } catch (error) {

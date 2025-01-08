@@ -6,6 +6,10 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
+# Build output
+dist/
+build/
+
 # Runtime data
 pids
 *.pid
@@ -36,4 +40,4 @@ pids
 .vscode/
 *.swp
 *.swo
-.DS_Store 
+.DS_Store
