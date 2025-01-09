@@ -1074,26 +1074,53 @@ class PhotoLayoutEditor {
         const placeholder = container.closest('.photo-placeholder');
         const cardId = placeholder.id;
         const pageNumber = this.sessionManager.sessionData.currentPage + 1;
-        
+
         // Get current settings from session state
         const card = this.sessionManager.getCard(pageNumber, cardId);
         const editState = {
-            zoom: card.imageSettings.zoom || 100,
-            rotation: card.imageSettings.rotation || 0,
-            translateX: card.imageSettings.translateX || 0,
-            translateY: card.imageSettings.translateY || 0
+            zoom: card.imageSettings?.zoom || 100,
+            rotation: card.imageSettings?.rotation || 0,
+            translateX: card.imageSettings?.translateX || 0,
+            translateY: card.imageSettings?.translateY || 0,
+            width: card.size.width,
+            height: card.size.height
         };
         
+        const previewWidth = card.size.width;
+        const previewHeight = card.size.height;
         const history = [];
         let historyIndex = -1;
         
         preview.innerHTML = '';
         const previewContainer = document.createElement('div');
         previewContainer.className = 'image-container';
+        previewContainer.style.width = `${previewWidth}mm`;
+        previewContainer.style.height = `${previewHeight}mm`;
+        
         const imgClone = img.cloneNode(true);
+        
+        // Set initial image styles for proper fitting
+        const containerAspect = card.size.width / card.size.height;
+        const imageAspect = card.image.originalWidth / card.image.originalHeight;
+        
+        if (containerAspect > imageAspect) {
+            imgClone.style.width = 'auto';
+            imgClone.style.height = '100%';
+        } else {
+            imgClone.style.width = '100%';
+            imgClone.style.height = 'auto';
+        }
+        
+        // Position image initially at center
+        imgClone.style.position = 'absolute';
+        imgClone.style.left = '50%';
+        imgClone.style.top = '50%';
+        
         previewContainer.appendChild(imgClone);
         preview.appendChild(previewContainer);
-        
+        preview.style.width = `${previewWidth}mm`;
+        preview.style.height = `${previewHeight}mm`;
+
         // Initialize preview with current settings
         const updatePreview = () => {
             const transform = [];
@@ -1163,8 +1190,16 @@ class PhotoLayoutEditor {
         };
         
         document.getElementById('fillImage').onclick = () => {
-            editState.zoom = 200;
-            zoomInput.value = 200;
+            // Set image dimensions to exactly match card dimensions
+            imgClone.style.width = '100%';
+            imgClone.style.height = '100%';
+            
+            // Reset other transformations
+            editState.zoom = 100;
+            editState.translateX = 0;
+            editState.translateY = 0;
+            zoomInput.value = editState.zoom;
+            
             updatePreview();
             saveState();
         };
