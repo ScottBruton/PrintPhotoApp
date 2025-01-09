@@ -1123,6 +1123,14 @@ class PhotoLayoutEditor {
 
         // Initialize preview with current settings
         const updatePreview = () => {
+            console.log('\nCurrent Preview State:');
+            console.log('Applied dimensions:', {
+                scale: editState.zoom / 100,
+                transformedWidth: imgClone.offsetWidth * (editState.zoom / 100),
+                transformedHeight: imgClone.offsetHeight * (editState.zoom / 100),
+                currentTransform: imgClone.style.transform
+            });
+
             const transform = [];
             transform.push('translate(-50%, -50%)'); // Center the image
             
@@ -1183,49 +1191,40 @@ class PhotoLayoutEditor {
         };
         
         document.getElementById('fitImage').onclick = () => {
-            // Get card and image dimensions
-            const cardWidth = card.size.width;
-            const cardHeight = card.size.height;
-            const imgWidth = card.image.originalWidth;
-            const imgHeight = card.image.originalHeight;
-            
-            // Determine which dimension of the image is larger relative to the card
-            const widthRatio = imgWidth / cardWidth;
-            const heightRatio = imgHeight / cardHeight;
-            
-            // Reset position
+            // Reset to original size
+            editState.zoom = 100;
             editState.translateX = 0;
             editState.translateY = 0;
-            
-            if (widthRatio > heightRatio) {
-                // Width is the limiting factor
-                imgClone.style.width = '100%';
-                imgClone.style.height = 'auto';
-            } else {
-                // Height is the limiting factor
-                imgClone.style.width = 'auto';
-                imgClone.style.height = '100%';
-            }
-            
-            // Reset zoom to base state since we're using direct dimension control
-            editState.zoom = 100;
             zoomInput.value = editState.zoom;
             
+            // Update preview and save
             updatePreview();
             saveState();
         };
         
         document.getElementById('fillImage').onclick = () => {
-            // Set image dimensions to exactly match card dimensions
+            // Force image to fill card dimensions
             imgClone.style.width = '100%';
             imgClone.style.height = '100%';
+            imgClone.style.objectFit = 'fill';  // This will stretch the image
             
-            // Reset other transformations
+            // Reset transformations
             editState.zoom = 100;
             editState.translateX = 0;
             editState.translateY = 0;
             zoomInput.value = editState.zoom;
+
+            console.log('Fill Image:', {
+                cardWidth: card.size.width,
+                cardHeight: card.size.height,
+                imageStyle: {
+                    width: imgClone.style.width,
+                    height: imgClone.style.height,
+                    objectFit: imgClone.style.objectFit
+                }
+            });
             
+            // Update preview and save
             updatePreview();
             saveState();
         };
@@ -1255,7 +1254,19 @@ class PhotoLayoutEditor {
         };
         
         document.getElementById('applyChanges').onclick = () => {
-            // Apply final transform to original image
+            // Get the original image container in the card
+            const cardImageContainer = container.querySelector('.image-container');
+            const cardImage = container.querySelector('img');
+            
+            // Transfer all styles from preview to card image
+            cardImage.style.width = imgClone.style.width;
+            cardImage.style.height = imgClone.style.height;
+            cardImage.style.objectFit = imgClone.style.objectFit;
+            cardImage.style.position = 'absolute';
+            cardImage.style.left = '50%';
+            cardImage.style.top = '50%';
+            
+            // Apply the same transform
             const transform = [];
             transform.push('translate(-50%, -50%)');
             
@@ -1271,11 +1282,17 @@ class PhotoLayoutEditor {
                 transform.push(`scale(${editState.zoom / 100})`);
             }
             
-            img.style.transform = transform.join(' ');
+            cardImage.style.transform = transform.join(' ');
             
-            // Save final state to session
-            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+            // Save final state to session including image styles
+            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { 
+                ...editState,
+                imageWidth: imgClone.style.width,
+                imageHeight: imgClone.style.height,
+                objectFit: imgClone.style.objectFit
+            });
             
+            // Close the editor
             editorModal.style.display = 'none';
         };
         
