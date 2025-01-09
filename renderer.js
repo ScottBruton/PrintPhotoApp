@@ -1183,8 +1183,34 @@ class PhotoLayoutEditor {
         };
         
         document.getElementById('fitImage').onclick = () => {
+            // Get card and image dimensions
+            const cardWidth = card.size.width;
+            const cardHeight = card.size.height;
+            const imgWidth = card.image.originalWidth;
+            const imgHeight = card.image.originalHeight;
+            
+            // Determine which dimension of the image is larger relative to the card
+            const widthRatio = imgWidth / cardWidth;
+            const heightRatio = imgHeight / cardHeight;
+            
+            // Reset position
+            editState.translateX = 0;
+            editState.translateY = 0;
+            
+            if (widthRatio > heightRatio) {
+                // Width is the limiting factor
+                imgClone.style.width = '100%';
+                imgClone.style.height = 'auto';
+            } else {
+                // Height is the limiting factor
+                imgClone.style.width = 'auto';
+                imgClone.style.height = '100%';
+            }
+            
+            // Reset zoom to base state since we're using direct dimension control
             editState.zoom = 100;
-            zoomInput.value = 100;
+            zoomInput.value = editState.zoom;
+            
             updatePreview();
             saveState();
         };
