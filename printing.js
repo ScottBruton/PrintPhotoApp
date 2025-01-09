@@ -130,44 +130,74 @@ class PrintManager {
   }
 
   updatePrinterDropdown() {
+    console.log('\n=== PRINTER DROPDOWN UPDATE STARTED ===');
     const select = this.dialog.querySelector("#printerSelect");
     const searchTerm = this.dialog
-      .querySelector("#printerSearch")
-      .value.toLowerCase();
+        .querySelector("#printerSearch")
+        .value.toLowerCase();
+
+    // Store currently selected printer
+    const selectedPrinterName = select.value;
+    console.log('Current selected printer before update:', selectedPrinterName);
 
     // Filter printers based on search term
     const filteredPrinters = this.printerList.filter((printer) =>
-      printer.name.toLowerCase().includes(searchTerm)
+        printer.name.toLowerCase().includes(searchTerm)
     );
 
-    // Sort printers: Physical printers first, then virtual printers
+    // Sort printers: Selected printer first, then physical printers, then virtual printers
     const sortedPrinters = filteredPrinters.sort((a, b) => {
-      const aIsVirtual = a.statusText.text === "Virtual Printer";
-      const bIsVirtual = b.statusText.text === "Virtual Printer";
-      if (aIsVirtual && !bIsVirtual) return 1;
-      if (!aIsVirtual && bIsVirtual) return -1;
-      return a.name.localeCompare(b.name);
+        // If one is the selected printer, it should come first
+        if (a.name === selectedPrinterName) return -1;
+        if (b.name === selectedPrinterName) return 1;
+
+        // Then sort by virtual/physical status
+        const aIsVirtual = a.statusText.text === "Virtual Printer";
+        const bIsVirtual = b.statusText.text === "Virtual Printer";
+        if (aIsVirtual && !bIsVirtual) return 1;
+        if (!aIsVirtual && bIsVirtual) return -1;
+
+        // Finally sort alphabetically
+        return a.name.localeCompare(b.name);
     });
+
+    console.log('Total printers after filtering:', filteredPrinters.length);
 
     // Clear existing options
     select.innerHTML = "";
 
-    // Add filtered printers to dropdown
+    // Add filtered and sorted printers to dropdown
     sortedPrinters.forEach((printer) => {
-      const option = document.createElement("option");
-      option.value = printer.name;
+        const option = document.createElement("option");
+        option.value = printer.name;
 
-      // Create status indicator
-      let statusDot;
-      if (printer.statusText.text === "Virtual Printer") {
-        statusDot = "🔵"; // Blue dot for virtual printers
-      } else {
-        statusDot = printer.statusText.ready ? "🟢" : "🔴";
-      }
+        // Create status indicator
+        let statusDot;
+        if (printer.statusText.text === "Virtual Printer") {
+            statusDot = "🔵"; // Blue dot for virtual printers
+        } else {
+            statusDot = printer.statusText.ready ? "🟢" : "🔴";
+        }
 
-      option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
-      select.appendChild(option);
+        option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
+        
+        // Set selected attribute if this is the selected printer
+        if (printer.name === selectedPrinterName) {
+            option.selected = true;
+            console.log('Found and marked selected printer:', printer.name);
+        }
+
+        select.appendChild(option);
     });
+
+    // Ensure the selected printer is still selected
+    if (selectedPrinterName) {
+        select.value = selectedPrinterName;
+        console.log('Final selected printer:', select.value);
+        console.log('Selected printer text:', select.options[select.selectedIndex]?.text);
+    }
+
+    console.log('=== PRINTER DROPDOWN UPDATE COMPLETED ===\n');
   }
 
   async validatePrintJob(settings) {
@@ -212,15 +242,7 @@ class PrintManager {
       }
     }
 
-    // Check printer status
-    const selectedPrinter = this.printerList.find(
-      (p) => p.name === settings.printer
-    );
-    if (selectedPrinter && !selectedPrinter.statusText.ready) {
-      errors.push(
-        `Printer "${settings.printer}" is not ready: ${selectedPrinter.statusText.text}`
-      );
-    }
+    // Removed printer status check to allow printing to any printer
 
     return {
       isValid: errors.length === 0,
@@ -615,6 +637,20 @@ class PrintManager {
 
     // Add to document
     document.body.appendChild(this.dialog);
+
+    // Add change event listener to printer select
+    const printerSelect = this.dialog.querySelector('#printerSelect');
+    printerSelect.addEventListener('change', (e) => {
+        console.log('\n=== PRINTER SELECTION CHANGED ===');
+        console.log('Previous printer:', this.currentSettings?.printer);
+        console.log('Newly selected printer:', e.target.value);
+        console.log('Selected printer text:', e.target.options[e.target.selectedIndex].text);
+        
+        this.currentSettings.printer = e.target.value;
+        
+        console.log('Settings updated - current printer:', this.currentSettings.printer);
+        console.log('=== PRINTER SELECTION COMPLETED ===\n');
+    });
   }
 
   setupEventListeners() {
