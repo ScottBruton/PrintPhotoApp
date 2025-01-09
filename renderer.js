@@ -94,6 +94,13 @@ class SessionStateManager {
         return null;
     }
 
+    getCardImage(pageNumber, cardId){
+        const card = this.getCard(pageNumber, cardId);
+        if (card) {
+            return card.image;
+        }
+        return null;
+    }
     // Update card image
     setCardImage(pageNumber, cardId, imageData) {
         const card = this.getCard(pageNumber, cardId);
@@ -102,7 +109,7 @@ class SessionStateManager {
                 src: imageData.src,
                 originalWidth: imageData.originalWidth,
                 originalHeight: imageData.originalHeight
-            };
+            };           
             if (!card.imageSettings) {
                 card.imageSettings = {
                     rotation: 0,
@@ -1191,6 +1198,22 @@ class PhotoLayoutEditor {
         };
         
         document.getElementById('fitImage').onclick = () => {
+
+            const cardWidth = card.size.width;
+            const cardHeight = card.size.height;
+            if (cardWidth > cardHeight) {               
+                imgClone.style.height = '100%';
+                imgClone.style.objectFit = 'contain'; 
+            }if(cardHeight > cardWidth){
+                imgClone.style.width = '100%';               
+                imgClone.style.objectFit = 'contain'; 
+            }
+            else
+            {
+                imgClone.style.width = '100%';
+                imgClone.style.height = '100%';
+                imgClone.style.objectFit = 'contain'; 
+            }
             // Reset to original size
             editState.zoom = 100;
             editState.translateX = 0;
