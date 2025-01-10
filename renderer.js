@@ -138,10 +138,24 @@ class SessionStateManager {
     updateCardImageSettings(pageNumber, cardId, settings) {
         const card = this.getCard(pageNumber, cardId);
         if (card) {
+            // Ensure we're using consistent property names
+            const updatedSettings = {
+                ...settings,
+                fit: settings.objectFit || settings.fit, // Handle both property names
+                width: settings.width || '100%',
+                height: settings.height || '100%',
+                rotation: settings.rotation || 0,
+                zoom: settings.zoom || 100,
+                translateX: settings.translateX || 0,
+                translateY: settings.translateY || 0
+            };
+
             card.imageSettings = {
                 ...card.imageSettings,
-                ...settings
+                ...updatedSettings
             };
+
+            console.log('Updated Card Settings:', card.imageSettings);
             this.saveState('Edit Image');
             return true;
         }
@@ -1361,12 +1375,24 @@ class PhotoLayoutEditor {
             
             cardImage.style.transform = transform.join(' ');
             
-            // Save final state to session including image styles
+            // Save final state to session including ALL image settings
             this.sessionManager.updateCardImageSettings(pageNumber, cardId, { 
                 ...editState,
-                imageWidth: imgClone.style.width,
-                imageHeight: imgClone.style.height,
-                objectFit: imgClone.style.objectFit
+                width: imgClone.style.width,
+                height: imgClone.style.height,
+                fit: imgClone.style.objectFit,
+                rotation: editState.rotation,
+                zoom: editState.zoom,
+                translateX: editState.translateX,
+                translateY: editState.translateY
+            });
+            
+            // Add this console.log to verify the settings are saved
+            console.log('Saved Card State:', {
+                pageNumber,
+                cardId,
+                savedSettings: this.sessionManager.getCard(pageNumber, cardId).imageSettings,
+                currentCardImage: this.sessionManager.getCardImage(pageNumber, cardId)
             });
             
             // Close the editor

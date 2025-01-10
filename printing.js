@@ -461,13 +461,12 @@ class PrintManager {
   async showPrintDialog(contentToprint) {
     if (!this.dialog) {
       this.createPrintDialog();
-      // Initialize printer monitoring after dialog is created
       this.initializePrinterMonitoring();
     }
 
-    // Initialize print preview if not already done
+    // Initialize print preview with rendererInstance instead of editor
     if (!this.printPreview) {
-      this.printPreview = new PrintPreview();
+      this.printPreview = new PrintPreview(window.rendererInstance);
     }
 
     // Show the dialog
@@ -525,8 +524,8 @@ class PrintManager {
     this.dialog = document.createElement("div");
     this.dialog.className = "print-dialog-overlay";
 
-    // Create the print preview instance
-    this.printPreview = new PrintPreview();
+    // Create the print preview instance with rendererInstance
+    this.printPreview = new PrintPreview(window.rendererInstance);
 
     this.dialog.innerHTML = `
             <div class="print-dialog">

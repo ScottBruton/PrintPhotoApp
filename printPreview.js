@@ -1,5 +1,6 @@
 class PrintPreview {
-    constructor() {
+    constructor(editor) {
+        this.editor = editor;
         this.previewContent = null;
         this.currentSettings = {
             zoom: 100,
@@ -118,96 +119,39 @@ class PrintPreview {
     }
 
     showCurrentPage() {
+        console.log('Showing current page:', this.currentSettings.currentPage);
         const currentPage = this.pages[this.currentSettings.currentPage];
+        console.log('Current page content:', currentPage);
+        
         if (currentPage) {
             this.previewContent.innerHTML = '';
             
-            // Create a container that matches the app's page container
+            // Create a container for the page
             const pageContainer = document.createElement('div');
             pageContainer.className = 'preview-page-container';
             
-            // Add the prepared page content
-            const preparedContent = this.prepareContent(currentPage);
-            pageContainer.appendChild(preparedContent);
+            // Clone and prepare the page content
+            const preparedPage = this.prepareContent(currentPage);
+            console.log('Prepared page:', preparedPage);
+            
+            pageContainer.appendChild(preparedPage);
             this.previewContent.appendChild(pageContainer);
             
-            // Apply current zoom or fit to screen
+            // Apply zoom settings
             if (this.currentSettings.zoom === 'auto') {
                 this.fitToScreen();
             } else {
                 this.updateZoom();
             }
+            
+            this.updateNavigationButtons();
         }
     }
 
     setPages(pages) {
-        const container = document.createElement('div');
-        container.className = 'preview-container';
-        
-        pages.forEach((page, index) => {
-            const pageWrapper = document.createElement('div');
-            pageWrapper.className = 'preview-page';
-            
-            // Clone the page
-            const clonedPage = page.cloneNode(true);
-            
-            // Clean up the preview appearance
-            const placeholders = clonedPage.querySelectorAll('.photo-placeholder');
-            placeholders.forEach(placeholder => {
-                // Remove borders and background
-                placeholder.style.border = 'none';
-                placeholder.style.backgroundColor = 'transparent';
-                
-                // Hide empty placeholders
-                if (!placeholder.querySelector('img')) {
-                    placeholder.style.display = 'none';
-                }
-                
-                // Remove the plus sign (if it exists)
-                const plusSign = placeholder.querySelector('.add-photo-icon');
-                if (plusSign) {
-                    plusSign.remove();
-                }
-            });
-            
-            // Hide edit overlays
-            const editOverlays = clonedPage.querySelectorAll('.edit-overlay');
-            editOverlays.forEach(overlay => {
-                overlay.style.display = 'none';
-            });
-            
-            // Ensure images maintain their transforms and positioning
-            const images = clonedPage.querySelectorAll('.photo-placeholder img');
-            images.forEach(img => {
-                const originalImg = document.querySelector(`img[src="${img.src}"]`);
-                if (originalImg) {
-                    // Copy all relevant styles
-                    img.style.transform = originalImg.style.transform;
-                    img.style.width = originalImg.style.width;
-                    img.style.height = originalImg.style.height;
-                    img.style.position = originalImg.style.position;
-                    img.style.left = originalImg.style.left;
-                    img.style.top = originalImg.style.top;
-                    
-                    // Ensure container is properly sized
-                    const container = img.closest('.image-container');
-                    if (container) {
-                        container.style.width = '100%';
-                        container.style.height = '100%';
-                        container.style.position = 'relative';
-                    }
-                }
-            });
-            
-            pageWrapper.appendChild(clonedPage);
-            container.appendChild(pageWrapper);
-        });
-        
-        this.previewContent.innerHTML = '';
-        this.previewContent.appendChild(container);
-        
-        // Update page count
-        this.pages = pages;
+        console.log('Setting pages:', pages);
+        this.pages = Array.from(pages);
+        console.log('Stored pages:', this.pages);
         this.currentSettings.currentPage = 0;
         this.updatePageIndicator();
         this.showCurrentPage();
@@ -268,47 +212,62 @@ class PrintPreview {
     }
 
     prepareContent(content) {
+        console.log('Preparing content:', content);
         const clone = content.cloneNode(true);
+        clone.dataset.pageNumber = this.currentSettings.currentPage + 1;
         
-        // Remove edit overlays
-        clone.querySelectorAll('.edit-overlay').forEach(o => o.remove());
-
-        // Process photo placeholders
-        clone.querySelectorAll('.photo-placeholder').forEach(p => {
-            const hasImage = p.querySelector('img');
-            if (hasImage) {
-                // If there's an image, keep only essential positioning styles
-                const essentialStyles = {
-                    position: p.style.position,
-                    width: p.style.width,
-                    height: p.style.height,
-                    left: p.style.left,
-                    top: p.style.top
-                };
-                
-                // Clear all styles and reapply only essential ones
-                p.removeAttribute('style');
-                Object.assign(p.style, essentialStyles);
-                
-                // Remove any background or border styles
-                p.style.background = 'none';
-                p.style.border = 'none';
-                p.style.boxShadow = 'none';
-            } else {
-                // If no image, remove the placeholder completely
-                p.remove();
-            }
-        });
-
-        // Ensure clean page background
-        if (clone.classList.contains('a4-page')) {
+        // Ensure the clone maintains the a4-page class and styles
+        if (content.classList.contains('a4-page')) {
             clone.style.background = 'white';
             clone.style.margin = '0';
             clone.style.padding = '5mm';
             clone.style.height = '297mm';
             clone.style.width = '210mm';
-            clone.style.boxShadow = 'none';
+            clone.style.position = 'relative';
+            clone.style.transformOrigin = 'top left';
         }
+        
+        // Process photo placeholders
+        clone.querySelectorAll('.photo-placeholder').forEach(placeholder => {
+            if (placeholder.querySelector('img')) {
+                // Keep essential styles
+                placeholder.style.position = 'absolute';
+                placeholder.style.background = 'none';
+                placeholder.style.border = 'none';
+                placeholder.style.boxShadow = 'none';
+            } else {
+                placeholder.remove();
+            }
+        });
+
+        // Process images
+        clone.querySelectorAll('.photo-placeholder img').forEach(img => {
+            const placeholder = img.closest('.photo-placeholder');
+            if (placeholder) {
+                const cardId = placeholder.id;
+                const pageNumber = this.currentSettings.currentPage + 1;
+                const cardImage = this.editor.sessionManager.getCardImage(pageNumber, cardId);
+                
+                if (cardImage) {
+                    const container = document.createElement('div');
+                    container.className = 'image-container';
+                    container.style.width = '100%';
+                    container.style.height = '100%';
+                    container.style.position = 'relative';
+                    
+                    img.style.width = cardImage.width;
+                    img.style.height = cardImage.height;
+                    img.style.objectFit = cardImage.objectFit;
+                    img.style.position = 'absolute';
+                    img.style.left = '50%';
+                    img.style.top = '50%';
+                    img.style.transform = `translate(-50%, -50%) rotate(${cardImage.rotation}deg) scale(${cardImage.zoom / 100})`;
+                    
+                    img.parentNode.replaceChild(container, img);
+                    container.appendChild(img);
+                }
+            }
+        });
 
         return clone;
     }
