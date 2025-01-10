@@ -94,10 +94,19 @@ class SessionStateManager {
         return null;
     }
 
-    getCardImage(pageNumber, cardId){
+    getCardImage(pageNumber, cardId) {
         const card = this.getCard(pageNumber, cardId);
-        if (card) {
-            return card.image;
+        if (card && card.image) {
+            return {
+                ...card.image,                    // Original image data (src, originalWidth, originalHeight)
+                width: card.imageSettings?.width || '100%',
+                height: card.imageSettings?.height || '100%',
+                objectFit: card.imageSettings?.fit || 'contain',
+                rotation: card.imageSettings?.rotation || 0,
+                zoom: card.imageSettings?.zoom || 100,
+                translateX: card.imageSettings?.translateX || 0,
+                translateY: card.imageSettings?.translateY || 0
+            };
         }
         return null;
     }
@@ -1084,49 +1093,80 @@ class PhotoLayoutEditor {
 
         // Get current settings from session state
         const card = this.sessionManager.getCard(pageNumber, cardId);
+        const currentImage = this.sessionManager.getCardImage(pageNumber, cardId);
+        
+        // Log card image dimensions
+        console.log('Card Image State:', {
+            cardDimensions: {
+                width: card.size.width,
+                height: card.size.height
+            },
+            currentImageStyles: {
+                width: img.style.width,
+                height: img.style.height,
+                objectFit: img.style.objectFit,
+                transform: img.style.transform
+            },
+            imageSettings: card.imageSettings,
+            naturalDimensions: {
+                width: img.naturalWidth,
+                height: img.naturalHeight
+            },
+            computedStyles: {
+                width: window.getComputedStyle(img).width,
+                height: window.getComputedStyle(img).height,
+                objectFit: window.getComputedStyle(img).objectFit
+            }
+        });
+
         const editState = {
             zoom: card.imageSettings?.zoom || 100,
             rotation: card.imageSettings?.rotation || 0,
             translateX: card.imageSettings?.translateX || 0,
             translateY: card.imageSettings?.translateY || 0,
             width: card.size.width,
-            height: card.size.height
+            height: card.size.height,
+            fit: card.imageSettings?.fit || 'contain'
         };
-        
-        const previewWidth = card.size.width;
-        const previewHeight = card.size.height;
+
+        // Add these history variables back
         const history = [];
         let historyIndex = -1;
         
         preview.innerHTML = '';
         const previewContainer = document.createElement('div');
         previewContainer.className = 'image-container';
-        previewContainer.style.width = `${previewWidth}mm`;
-        previewContainer.style.height = `${previewHeight}mm`;
+        previewContainer.style.width = `${card.size.width}mm`;
+        previewContainer.style.height = `${card.size.height}mm`;
         
         const imgClone = img.cloneNode(true);
         
-        // Set initial image styles for proper fitting
-        const containerAspect = card.size.width / card.size.height;
-        const imageAspect = card.image.originalWidth / card.image.originalHeight;
-        
-        if (containerAspect > imageAspect) {
-            imgClone.style.width = 'auto';
-            imgClone.style.height = '100%';
+        // Apply current image settings if they exist
+        if (currentImage) {
+            imgClone.style.width = currentImage.width || '100%';
+            imgClone.style.height = currentImage.height || '100%';
+            imgClone.style.objectFit = card.imageSettings?.fit || 'contain';
+            imgClone.style.transform = `rotate(${editState.rotation}deg) scale(${editState.zoom / 100})`;
         } else {
-            imgClone.style.width = '100%';
-            imgClone.style.height = 'auto';
+            // Default settings if no saved image state
+            const containerAspect = card.size.width / card.size.height;
+            const imageAspect = card.image.originalWidth / card.image.originalHeight;
+            
+            if (containerAspect > imageAspect) {
+                imgClone.style.width = 'auto';
+                imgClone.style.height = '100%';
+            } else {
+                imgClone.style.width = '100%';
+                imgClone.style.height = 'auto';
+            }
         }
         
-        // Position image initially at center
         imgClone.style.position = 'absolute';
         imgClone.style.left = '50%';
         imgClone.style.top = '50%';
         
         previewContainer.appendChild(imgClone);
         preview.appendChild(previewContainer);
-        preview.style.width = `${previewWidth}mm`;
-        preview.style.height = `${previewHeight}mm`;
 
         // Initialize preview with current settings
         const updatePreview = () => {
@@ -1162,7 +1202,12 @@ class PhotoLayoutEditor {
             historyIndex++;
             
             // Save to session state
-            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { 
+                ...editState,
+                width: imgClone.style.width,
+                height: imgClone.style.height,
+                objectFit: imgClone.style.objectFit
+            });
         };
         
         // Initialize controls with current values
@@ -1235,6 +1280,7 @@ class PhotoLayoutEditor {
             editState.zoom = 100;
             editState.translateX = 0;
             editState.translateY = 0;
+            editState.fit = 'fill';  // Add this to track objectFit in editState
             zoomInput.value = editState.zoom;
 
             console.log('Fill Image:', {
@@ -1249,7 +1295,15 @@ class PhotoLayoutEditor {
             
             // Update preview and save
             updatePreview();
-            saveState();
+            
+            // Save to session state including the fill setting
+            this.sessionManager.updateCardImageSettings(pageNumber, cardId, { 
+                ...editState,
+                width: '100%',
+                height: '100%',
+                fit: 'fill',  // Save the fill setting
+                objectFit: 'fill'
+            });
         };
         
         document.getElementById('undoEdit').onclick = () => {
@@ -1352,6 +1406,25 @@ class PhotoLayoutEditor {
         updatePreview();
         saveState(); // Save initial state
         editorModal.style.display = 'block';
+
+        // After creating preview image
+        console.log('Preview Image State:', {
+            previewDimensions: {
+                width: previewContainer.style.width,
+                height: previewContainer.style.height
+            },
+            clonedImageStyles: {
+                width: imgClone.style.width,
+                height: imgClone.style.height,
+                objectFit: imgClone.style.objectFit,
+                transform: imgClone.style.transform
+            },
+            computedPreviewStyles: {
+                width: window.getComputedStyle(imgClone).width,
+                height: window.getComputedStyle(imgClone).height,
+                objectFit: window.getComputedStyle(imgClone).objectFit
+            }
+        });
     }
 
     closeModal() {
