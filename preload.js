@@ -1,4 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
+const Session = require("./path/to/Session");
+
+const session = new Session();
 
 contextBridge.exposeInMainWorld("electron", {
   invoke: (channel, data) => {
@@ -26,5 +29,19 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.invoke("win-print-file", { filePath, printerName }),
     getTempFile: (filename) => ipcRenderer.invoke("get-temp-file", filename),
   },
-  createTempPDF: (htmlContent) => ipcRenderer.invoke("create-temp-pdf", htmlContent)
+  createTempPDF: (htmlContent) =>
+    ipcRenderer.invoke("create-temp-pdf", htmlContent),
+
+  // Exposing session methods
+  sessionAPI: {
+    addPage: (pageSize) => session.addPage(pageSize),
+    getCurrentPage: () => session.getCurrentPage(),
+    saveToLocalStorage: () => session.saveToLocalStorage(),
+    loadFromLocalStorage: () => Session.loadFromLocalStorage(),
+    addCard: (x, y, width, height) =>
+      session.getCurrentPage().addCard(x, y, width, height),
+    generatePreview: (pageNumber) =>
+      session.pages[pageNumber - 1]?.generatePreview(),
+    getSessionData: () => session,
+  },
 });

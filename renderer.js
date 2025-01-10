@@ -11,186 +11,258 @@ class SessionStateManager {
 
     // Save current state to history
     saveState(actionName) {
-        // Remove any future states if we're in the middle of the history
-        if (this.currentHistoryIndex < this.history.length - 1) {
-            this.history = this.history.slice(0, this.currentHistoryIndex + 1);
-        }
-        
-        // Save current state
-        this.history.push({
-            state: JSON.parse(JSON.stringify(this.sessionData)),
-            action: actionName
-        });
-        this.currentHistoryIndex++;
-        
-        // Limit history size (optional)
-        if (this.history.length > 50) {
-            this.history.shift();
-            this.currentHistoryIndex--;
-        }
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Save the current state using the sessionAPI
+        sessionAPI.addToHistory(actionName);
+    
+        // Optional: Log the saved state for debugging
+        console.log(`State saved with action: ${actionName}`);
     }
+    
 
-    // Restore state from history
     restoreState(state) {
-        this.sessionData = JSON.parse(JSON.stringify(state));
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Restore the state using sessionAPI
+        sessionAPI.loadFromLocalStorage();
+    
+        // Log the restored state for debugging
+        console.log('State restored:', sessionAPI.getSessionData());
     }
+    
 
-    // Undo last action
-    undo() {
-        if (this.currentHistoryIndex > 0) {
-            this.currentHistoryIndex--;
-            this.restoreState(this.history[this.currentHistoryIndex].state);
+  // Undo last action
+undo() {
+    const sessionAPI = window.electron.sessionAPI;
+
+    if (sessionAPI.getSessionData().history.length > 0) {
+        const currentIndex = sessionAPI.getSessionData().history.length - 1;
+        const previousState = sessionAPI.getSessionData().history[currentIndex - 1];
+        
+        if (previousState) {
+            sessionAPI.restoreState(previousState.state);
+            console.log(`Action undone: ${previousState.action}`);
             return true;
         }
-        return false;
     }
 
-    // Redo last undone action
-    redo() {
-        if (this.currentHistoryIndex < this.history.length - 1) {
-            this.currentHistoryIndex++;
-            this.restoreState(this.history[this.currentHistoryIndex].state);
+    console.warn("No actions to undo.");
+    return false;
+}
+
+// Redo last undone action
+redo() {
+    const sessionAPI = window.electron.sessionAPI;
+
+    const history = sessionAPI.getSessionData().history;
+    if (history.length > 0) {
+        const currentIndex = sessionAPI.getSessionData().history.length - 1;
+        const nextState = history[currentIndex + 1];
+
+        if (nextState) {
+            sessionAPI.restoreState(nextState.state);
+            console.log(`Action redone: ${nextState.action}`);
             return true;
         }
-        return false;
     }
+
+    console.warn("No actions to redo.");
+    return false;
+}
 
     // Initialize a new page
     createPage(pageNumber, pageSize) {
-        const newPage = {
-            pageNumber: pageNumber,
-            pageSize: pageSize,
-            cards: []
-        };
-        this.sessionData.pages.push(newPage);
-        this.saveState('Create Page');
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Validate pageSize before proceeding (optional step)
+        if (!sessionAPI.validatePageSize(pageSize.width, pageSize.height)) {
+            console.error("Invalid page size provided.");
+            return null;
+        }
+    
+        // Use the session API to add a page
+        const newPage = sessionAPI.addPage(pageSize);
+    
+        // Log the action (optional debugging step)
+        console.log(`Created new page: ${JSON.stringify(newPage)}`);
+    
         return newPage;
     }
+    
 
-    // Add a card to a page
     addCard(pageNumber, cardData) {
-        const page = this.getPage(pageNumber);
-        if (page) {
-            const card = {
-                id: `card-${pageNumber}-${page.cards.length}`,
-                position: cardData.position,
-                size: {
-                    width: cardData.width,
-                    height: cardData.height
-                },
-                image: null,
-                imageSettings: {
-                    rotation: 0,
-                    zoom: 100,
-                    translateX: 0,
-                    translateY: 0,
-                    fit: 'contain'
-                }
-            };
-            page.cards.push(card);
-            this.saveState('Add Card');
-            return card;
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Add a card to the specified page
+        const newCard = sessionAPI.addCard(pageNumber, {
+            position: cardData.position,
+            width: cardData.width,
+            height: cardData.height,
+        });
+    
+        if (newCard) {
+            console.log(`Card added to page ${pageNumber}:`, newCard);
+            sessionAPI.saveState('Add Card');
+            return newCard;
+        } else {
+            console.error(`Failed to add card to page ${pageNumber}.`);
+            return null;
         }
-        return null;
     }
+    
 
     getCardImage(pageNumber, cardId) {
-        const card = this.getCard(pageNumber, cardId);
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Retrieve the card from the session
+        const card = sessionAPI.getCard(pageNumber, cardId);
+    
         if (card && card.image) {
             return {
-                ...card.image,                    // Original image data (src, originalWidth, originalHeight)
+                ...card.image, // Original image data
                 width: card.imageSettings?.width || '100%',
                 height: card.imageSettings?.height || '100%',
                 objectFit: card.imageSettings?.fit || 'contain',
                 rotation: card.imageSettings?.rotation || 0,
                 zoom: card.imageSettings?.zoom || 100,
                 translateX: card.imageSettings?.translateX || 0,
-                translateY: card.imageSettings?.translateY || 0
+                translateY: card.imageSettings?.translateY || 0,
             };
         }
+    
+        console.warn(`Card image not found for card ${cardId} on page ${pageNumber}.`);
         return null;
     }
+    
     // Update card image
     setCardImage(pageNumber, cardId, imageData) {
-        const card = this.getCard(pageNumber, cardId);
-        if (card) {
-            card.image = {
-                src: imageData.src,
-                originalWidth: imageData.originalWidth,
-                originalHeight: imageData.originalHeight
-            };           
-            if (!card.imageSettings) {
-                card.imageSettings = {
-                    rotation: 0,
-                    zoom: 100,
-                    translateX: 0,
-                    translateY: 0,
-                    fit: 'contain'
-                };
-            }
-            this.saveState('Add Image');
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Update the card's image in the session
+        const success = sessionAPI.setCardImage(pageNumber, cardId, {
+            src: imageData.src,
+            originalWidth: imageData.originalWidth,
+            originalHeight: imageData.originalHeight,
+        });
+    
+        if (success) {
+            console.log(`Image set for card ${cardId} on page ${pageNumber}.`);
+            sessionAPI.saveState('Add Image');
             return true;
+        } else {
+            console.error(`Failed to set image for card ${cardId} on page ${pageNumber}.`);
+            return false;
         }
-        return false;
     }
+    
 
-    // Update card image settings
     updateCardImageSettings(pageNumber, cardId, settings) {
-        const card = this.getCard(pageNumber, cardId);
-        if (card) {
-            // Ensure we're using consistent property names
-            const updatedSettings = {
-                ...settings,
-                fit: settings.objectFit || settings.fit, // Handle both property names
-                width: settings.width || '100%',
-                height: settings.height || '100%',
-                rotation: settings.rotation || 0,
-                zoom: settings.zoom || 100,
-                translateX: settings.translateX || 0,
-                translateY: settings.translateY || 0
-            };
-
-            card.imageSettings = {
-                ...card.imageSettings,
-                ...updatedSettings
-            };
-
-            console.log('Updated Card Settings:', card.imageSettings);
-            this.saveState('Edit Image');
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Ensure we're using consistent property names
+        const updatedSettings = {
+            ...settings,
+            fit: settings.objectFit || settings.fit, // Handle both property names
+            width: settings.width || '100%',
+            height: settings.height || '100%',
+            rotation: settings.rotation || 0,
+            zoom: settings.zoom || 100,
+            translateX: settings.translateX || 0,
+            translateY: settings.translateY || 0,
+        };
+    
+        // Update the card's image settings in the session
+        const success = sessionAPI.updateCardImageSettings(pageNumber, cardId, updatedSettings);
+    
+        if (success) {
+            console.log(`Updated Card Settings for card ${cardId} on page ${pageNumber}:`, updatedSettings);
+            sessionAPI.saveState('Edit Image');
             return true;
+        } else {
+            console.error(`Failed to update image settings for card ${cardId} on page ${pageNumber}.`);
+            return false;
         }
-        return false;
     }
+    
 
-    // Get page data
     getPage(pageNumber) {
-        return this.sessionData.pages.find(page => page.pageNumber === pageNumber);
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Get page data from the session API
+        const page = sessionAPI.getPage(pageNumber);
+    
+        if (page) {
+            console.log(`Retrieved data for page ${pageNumber}:`, page);
+            return page;
+        } else {
+            console.warn(`Page ${pageNumber} not found.`);
+            return null;
+        }
     }
+    
 
     // Get card data
     getCard(pageNumber, cardId) {
-        const page = this.getPage(pageNumber);
-        if (page) {
-            return page.cards.find(card => card.id === cardId);
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Get card data from the session API
+        const card = sessionAPI.getCard(pageNumber, cardId);
+    
+        if (card) {
+            console.log(`Retrieved card ${cardId} on page ${pageNumber}:`, card);
+            return card;
+        } else {
+            console.warn(`Card ${cardId} not found on page ${pageNumber}.`);
+            return null;
         }
-        return null;
     }
-
-    // Get all cards for a page
+    
     getPageCards(pageNumber) {
-        const page = this.getPage(pageNumber);
-        return page ? page.cards : [];
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Get all cards for the specified page
+        const cards = sessionAPI.getPageCards(pageNumber);
+    
+        if (cards && cards.length > 0) {
+            console.log(`Retrieved ${cards.length} cards for page ${pageNumber}.`);
+            return cards;
+        } else {
+            console.warn(`No cards found for page ${pageNumber}.`);
+            return [];
+        }
     }
+    
 
-    // Get current session state
     getSessionState() {
-        return this.sessionData;
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Get the current session state from the session API
+        const sessionState = sessionAPI.getSessionData();
+    
+        if (sessionState) {
+            console.log('Current session state retrieved:', sessionState);
+            return sessionState;
+        } else {
+            console.warn('Failed to retrieve the current session state.');
+            return null;
+        }
     }
+    
 
-    // Load session state
     loadSessionState(state) {
-        this.sessionData = JSON.parse(JSON.stringify(state));
+        const sessionAPI = window.electron.sessionAPI;
+    
+        // Load the provided state into the session API
+        const success = sessionAPI.loadFromLocalStorage(state);
+    
+        if (success) {
+            console.log('Session state successfully loaded:', state);
+        } else {
+            console.error('Failed to load the session state.');
+        }
     }
+    
 }
 
 // Modify your PhotoLayoutEditor class to use SessionStateManager
