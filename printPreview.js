@@ -131,6 +131,32 @@ class PrintPreview {
       const deleteBtn = pageClone.querySelector(".page-delete-btn");
       if (deleteBtn) deleteBtn.remove();
 
+      // Remove add photo icons from empty placeholders
+      const addPhotoIcons = pageClone.querySelectorAll(".add-photo-icon");
+      addPhotoIcons.forEach((icon) => icon.remove());
+
+      // Hide empty placeholders completely
+      const emptyPlaceholders = pageClone.querySelectorAll(
+        ".photo-placeholder:empty"
+      );
+      emptyPlaceholders.forEach(
+        (placeholder) => (placeholder.style.display = "none")
+      );
+
+      const placeholders = pageClone.querySelectorAll(".photo-placeholder");
+
+      // Loop through all placeholders
+      placeholders.forEach((placeholder) => {
+        // Check if the placeholder is empty or has no visible content
+        const hasContent = placeholder.innerHTML.trim() !== "";
+
+        if (!hasContent) {
+          // Hide the placeholder and any associated pseudo-elements
+          placeholder.style.display = "none"; // Hide the element
+          placeholder.style.setProperty("content", "none", "important"); // Clear `::after`
+        }
+      });
+
       // Add preview-specific styling
       pageClone.classList.add("preview-page");
       pageClone.style.display = "block";
