@@ -167,6 +167,7 @@ class SessionStateManager {
 class PhotoLayoutEditor {
     constructor() {
         this.sessionManager = new SessionStateManager();
+        this.layoutRenderer = new LayoutRenderer();
         this.initializeElements();
         this.bindEvents();
         // Make the instance globally available
@@ -477,6 +478,9 @@ class PhotoLayoutEditor {
         
         // Close the modal
         this.modal.style.display = 'none';
+        
+        // Update layout state after all changes
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
         return true;
     }
 
@@ -510,6 +514,9 @@ class PhotoLayoutEditor {
             this.updatePageIndicator();
             this.navigatePage(0); // Refresh current page view
         }
+        
+        // Update layout state after deletion
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     handleImageDrop(e, placeholder, cardId) {
@@ -527,46 +534,13 @@ class PhotoLayoutEditor {
                     originalHeight: img.height
                 };
                 
-                // Update session state with the new image
+                // Update session and layout state
                 const pageNumber = this.sessionManager.sessionData.currentPage + 1;
                 this.sessionManager.setCardImage(pageNumber, cardId, imageData);
+                this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
                 
-                // Create container and setup image
-                const container = document.createElement('div');
-                container.className = 'image-container';
-                
-                const imgElement = document.createElement('img');
-                imgElement.src = imageData.src;
-                
-                // Get card dimensions from session state
-                const card = this.sessionManager.getCard(pageNumber, cardId);
-                
-                // Set initial image styles for proper fitting
-                const containerAspect = card.size.width / card.size.height;
-                const imageAspect = imageData.originalWidth / imageData.originalHeight;
-                
-                if (containerAspect > imageAspect) {
-                    imgElement.style.width = '100%';
-                    imgElement.style.height = 'auto';
-                } else {
-                    imgElement.style.width = 'auto';
-                    imgElement.style.height = '100%';
-                }
-                
-                // Position image initially at center
-                imgElement.style.position = 'absolute';
-                imgElement.style.left = '50%';
-                imgElement.style.top = '50%';
-                imgElement.style.transform = 'translate(-50%, -50%)';
-                
-                container.appendChild(imgElement);
-                
-                // Clear placeholder and add container
-                placeholder.innerHTML = '';
-                placeholder.appendChild(container);
-                
-                // Add edit overlay
-                this.addEditOverlay(placeholder, cardId);
+                // Update display
+                this.updateCardDisplay(placeholder, imageData);
             };
             img.src = event.target.result;
         };
@@ -579,6 +553,9 @@ class PhotoLayoutEditor {
         img.src = imageData.src;
         placeholder.appendChild(img);
         this.addEditOverlay(placeholder);
+        
+        // Update layout state after display update
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     setupDragAndDrop() {
@@ -640,6 +617,9 @@ class PhotoLayoutEditor {
         
         // Show the size modal for the new page
         this.showSizeModal();
+        
+        // Update layout state after adding page
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     navigatePage(direction) {
@@ -765,6 +745,7 @@ class PhotoLayoutEditor {
 
     undo() {
         if (this.sessionManager.undo()) {
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             // Refresh the current page view
             this.navigatePage(0);
             this.updatePageIndicator();
@@ -773,6 +754,7 @@ class PhotoLayoutEditor {
 
     redo() {
         if (this.sessionManager.redo()) {
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             // Refresh the current page view
             this.navigatePage(0);
             this.updatePageIndicator();
@@ -787,6 +769,7 @@ class PhotoLayoutEditor {
         
         const result = await window.electron.invoke('save-layout', layoutData);
         if (result) {
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             alert('Layout saved successfully!');
         }
     }
@@ -794,103 +777,14 @@ class PhotoLayoutEditor {
     async loadLayout() {
         const layoutData = await window.electron.invoke('load-layout');
         if (layoutData) {
-            // Load the session state
             this.sessionManager.loadSessionState(layoutData);
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             
             // Update the page indicator
             this.updatePageIndicator();
             
-            // Get current page data
-            const currentPage = this.sessionManager.getPage(this.sessionManager.sessionData.currentPage + 1);
-            if (currentPage && currentPage.pageSize) {
-                // Clear the current page container
-                this.pageContainer.innerHTML = '';
-                
-                // Recreate the layout with the page's size
-                const [width, height] = currentPage.pageSize.split('x').map(n => parseInt(n));
-                const PAGE_WIDTH = 210;
-                const PAGE_HEIGHT = 297;
-                const MARGIN = 5;
-                const SPACING = 10;
-                
-                const availableWidth = PAGE_WIDTH - (2 * MARGIN);
-                const availableHeight = PAGE_HEIGHT - (2 * MARGIN);
-                
-                const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
-                const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
-                
-                // Recreate each card and restore its image if it exists
-                currentPage.cards.forEach(card => {
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'photo-placeholder';
-                    placeholder.id = card.id;
-                    
-                    Object.assign(placeholder.style, {
-                        width: `${card.size.width}mm`,
-                        height: `${card.size.height}mm`,
-                        left: `${card.position.x}mm`,
-                        top: `${card.position.y}mm`,
-                        position: 'absolute'
-                    });
-                    
-                    this.pageContainer.appendChild(placeholder);
-                    this.setupDropZone(placeholder, card.id);
-                    
-                    // Restore image if it exists
-                    if (card.image) {
-                        const container = document.createElement('div');
-                        container.className = 'image-container';
-                        
-                        const img = document.createElement('img');
-                        img.src = card.image.src;
-                        
-                        // Set initial image styles for proper fitting
-                        const containerAspect = card.size.width / card.size.height;
-                        const imageAspect = card.image.originalWidth / card.image.originalHeight;
-                        
-                        if (containerAspect > imageAspect) {
-                            img.style.width = '100%';
-                            img.style.height = 'auto';
-                        } else {
-                            img.style.width = 'auto';
-                            img.style.height = '100%';
-                        }
-                        
-                        // Position image initially at center
-                        img.style.position = 'absolute';
-                        img.style.left = '50%';
-                        img.style.top = '50%';
-                        
-                        // Apply stored image settings
-                        if (card.imageSettings) {
-                            const transform = [];
-                            transform.push('translate(-50%, -50%)'); // Center the image
-                            
-                            if (card.imageSettings.translateX || card.imageSettings.translateY) {
-                                transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
-                            }
-                            
-                            if (card.imageSettings.rotation) {
-                                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
-                            }
-                            
-                            if (card.imageSettings.zoom) {
-                                transform.push(`scale(${card.imageSettings.zoom / 100})`);
-                            }
-                            
-                            img.style.transform = transform.join(' ');
-                        } else {
-                            img.style.transform = 'translate(-50%, -50%)';
-                        }
-                        
-                        container.appendChild(img);
-                        placeholder.appendChild(container);
-                        
-                        // Add edit and delete buttons overlay
-                        this.addEditOverlay(placeholder, card.id);
-                    }
-                });
-            }
+            // Refresh the current page view
+            this.navigatePage(0);
         }
     }
 
@@ -906,164 +800,150 @@ class PhotoLayoutEditor {
                 format: 'a4'
             });
             
+            // Create a temporary container for the HTML content
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px';
+            document.body.appendChild(tempContainer);
+
+            // Generate HTML for all pages
+            tempContainer.innerHTML = this.layoutRenderer.generateHTML();
+
             // Process each page
             for (let i = 0; i < this.sessionManager.sessionData.pages.length; i++) {
-                // Navigate to the page to render it
-                this.sessionManager.sessionData.currentPage = i;
-                this.navigatePage(0); // Force render the current page
-                
-                // Wait a moment for images to load
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Get the page element
+                const pageElement = tempContainer.querySelector(`[data-page="${i + 1}"]`);
+                if (!pageElement) continue;
+
+                // Show current page and hide others
+                pageElement.style.display = 'block';
                 
                 // Hide empty placeholders before capture
-                const emptyPlaceholders = document.querySelectorAll('.photo-placeholder:not(:has(img))');
+                const emptyPlaceholders = pageElement.querySelectorAll('.photo-placeholder:not(:has(img))');
                 emptyPlaceholders.forEach(placeholder => {
                     placeholder.style.display = 'none';
                 });
                 
-                // Remove dotted borders for capture
-                const placeholders = document.querySelectorAll('.photo-placeholder');
+                // Remove dotted borders and backgrounds for capture
+                const placeholders = pageElement.querySelectorAll('.photo-placeholder');
                 placeholders.forEach(placeholder => {
                     placeholder.style.border = 'none';
                     placeholder.style.backgroundColor = 'transparent';
                 });
                 
-                // Hide edit overlays for capture
-                const editOverlays = document.querySelectorAll('.edit-overlay');
+                // Hide edit overlays and delete buttons for capture
+                const editOverlays = pageElement.querySelectorAll('.edit-overlay, .page-delete-btn');
                 editOverlays.forEach(overlay => {
                     overlay.style.display = 'none';
                 });
 
-                // Ensure images maintain their transforms
-                const images = document.querySelectorAll('.photo-placeholder img');
-                images.forEach(img => {
-                    const container = img.closest('.image-container');
-                    if (container) {
-                        // Get the card data from session state
-                        const placeholder = container.closest('.photo-placeholder');
-                        const cardId = placeholder.id;
-                        const card = this.sessionManager.getCard(i + 1, cardId);
-                        
-                        if (card && card.imageSettings) {
-                            // Apply the stored settings
-                            const transform = [];
-                            transform.push('translate(-50%, -50%)'); // Center the image
-                            
-                            if (card.imageSettings.translateX || card.imageSettings.translateY) {
-                                transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
-                            }
-                            
-                            if (card.imageSettings.rotation) {
-                                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
-                            }
-                            
-                            if (card.imageSettings.zoom) {
-                                transform.push(`scale(${card.imageSettings.zoom / 100})`);
-                            }
-                            
-                            img.style.transform = transform.join(' ');
-                            img.style.position = 'absolute';
-                            img.style.left = '50%';
-                            img.style.top = '50%';
-                            
-                            // Set size based on aspect ratio
-                            const containerAspect = card.size.width / card.size.height;
-                            const imageAspect = card.image.originalWidth / card.image.originalHeight;
-                            
-                            if (containerAspect > imageAspect) {
-                                img.style.width = 'auto';
-                                img.style.height = '100%';
-                            } else {
-                                img.style.width = '100%';
-                                img.style.height = 'auto';
-                            }
-                        }
-                    }
-                });
-                
+                // Wait for images to load
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 // Capture the page
-                const pageElement = document.getElementById('a4Page');
                 const canvas = await html2canvas(pageElement, {
-                    scale: 4, // Higher resolution
-                    useCORS: true, // Enable cross-origin image loading
+                    scale: 2,
+                    useCORS: true,
                     allowTaint: true,
-                    backgroundColor: '#ffffff',
-                    width: pageElement.offsetWidth,
-                    height: pageElement.offsetHeight,
-                    logging: false, // Disable logging
-                    onclone: (clonedDoc) => {
-                        // Apply transforms to cloned images
-                        const clonedImages = clonedDoc.querySelectorAll('.photo-placeholder img');
-                        clonedImages.forEach(img => {
-                            const originalImg = document.querySelector(`img[src="${img.src}"]`);
-                            if (originalImg) {
-                                img.style.transform = originalImg.style.transform;
-                                img.style.width = originalImg.style.width;
-                                img.style.height = originalImg.style.height;
-                                img.style.position = originalImg.style.position;
-                                img.style.left = originalImg.style.left;
-                                img.style.top = originalImg.style.top;
-                            }
-                        });
-                    }
+                    backgroundColor: null
                 });
-                
-                // Convert to image and add to PDF
-                const imgData = canvas.toDataURL('image/jpeg', 1.0);
-                
-                // Add new page if not first page
+
+                // Add page to PDF (except first page)
                 if (i > 0) {
                     pdf.addPage();
                 }
-                
-                // Add image to page (full A4 size)
-                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-                
-                // Restore visibility of elements
-                emptyPlaceholders.forEach(placeholder => {
-                    placeholder.style.display = 'block';
-                });
-                placeholders.forEach(placeholder => {
-                    placeholder.style.border = '2px dashed #dee2e6';
-                    placeholder.style.backgroundColor = '#f8f9fa';
-                });
-                editOverlays.forEach(overlay => {
-                    overlay.style.display = 'block';
-                });
+
+                // Add the image to the PDF
+                const imgData = canvas.toDataURL('image/png');
+                pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
             }
-            
-            // Restore original page
+
+            // Clean up the temporary container
+            document.body.removeChild(tempContainer);
+
+            // Save the PDF
+            pdf.save('photo-layout.pdf');
+
+            // Restore the original page
             this.sessionManager.sessionData.currentPage = currentPageIndex;
             this.navigatePage(0);
-            
-            // Save the PDF
-            const result = await window.electron.invoke('save-pdf', {
-                data: pdf.output('arraybuffer'),
-                defaultPath: 'photo-layout.pdf'
-            });
-            
-            if (result) {
-                alert('PDF exported successfully!');
-            }
+
         } catch (error) {
-            console.error('Error exporting PDF:', error);
-            alert('Error exporting PDF. Please try again.');
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
         }
     }
 
     showPrintPreview() {
-        if (!this.printManager) {
-            this.printManager = new PrintManager();
-        }
-        
-        this.printManager.showPrintDialog(this.pageContainer)
-            .then(success => {
-                if (success) {
-                    console.log('Print completed successfully');
-                } else {
-                    console.log('Print cancelled or failed');
-                }
-            });
+        // Create print preview window
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Print Preview</title>
+                <style>
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .a4-page {
+                        width: 210mm;
+                        height: 297mm;
+                        position: relative;
+                        page-break-after: always;
+                        margin: 0;
+                        padding: 0;
+                        background: white;
+                    }
+                    .photo-placeholder {
+                        position: absolute;
+                    }
+                    .photo-placeholder img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: contain;
+                    }
+                    .edit-overlay, .page-delete-btn {
+                        display: none !important;
+                    }
+                    @media print {
+                        body {
+                            width: 210mm;
+                            height: 297mm;
+                        }
+                        .a4-page {
+                            page-break-after: always;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                ${this.layoutRenderer.generateHTML()}
+                <script>
+                    window.onload = () => {
+                        // Hide empty placeholders
+                        document.querySelectorAll('.photo-placeholder:not(:has(img))').forEach(p => p.style.display = 'none');
+                        // Show all pages for printing
+                        document.querySelectorAll('.a4-page').forEach(p => p.style.display = 'block');
+                        // Remove borders and backgrounds
+                        document.querySelectorAll('.photo-placeholder').forEach(p => {
+                            p.style.border = 'none';
+                            p.style.backgroundColor = 'transparent';
+                        });
+                        // Print automatically
+                        window.print();
+                        // Close window after printing
+                        window.onafterprint = () => window.close();
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     // Enhanced image handling with editing features
@@ -1308,6 +1188,9 @@ class PhotoLayoutEditor {
                 this.setupDropZone(placeholder);
             }
         }
+        
+        // Update layout state after creating placeholders
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     setupDropZone(placeholder, cardId) {
@@ -1383,46 +1266,13 @@ class PhotoLayoutEditor {
                     originalHeight: img.height
                 };
                 
-                // Update session state with the new image
+                // Update session and layout state
                 const pageNumber = this.sessionManager.sessionData.currentPage + 1;
                 this.sessionManager.setCardImage(pageNumber, cardId, imageData);
+                this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
                 
-                // Create container and setup image
-                const container = document.createElement('div');
-                container.className = 'image-container';
-                
-                const imgElement = document.createElement('img');
-                imgElement.src = imageData.src;
-                
-                // Get card dimensions from session state
-                const card = this.sessionManager.getCard(pageNumber, cardId);
-                
-                // Set initial image styles for proper fitting
-                const containerAspect = card.size.width / card.size.height;
-                const imageAspect = imageData.originalWidth / imageData.originalHeight;
-                
-                if (containerAspect > imageAspect) {
-                    imgElement.style.width = '100%';
-                    imgElement.style.height = 'auto';
-                } else {
-                    imgElement.style.width = 'auto';
-                    imgElement.style.height = '100%';
-                }
-                
-                // Position image initially at center
-                imgElement.style.position = 'absolute';
-                imgElement.style.left = '50%';
-                imgElement.style.top = '50%';
-                imgElement.style.transform = 'translate(-50%, -50%)';
-                
-                container.appendChild(imgElement);
-                
-                // Clear placeholder and add container
-                placeholder.innerHTML = '';
-                placeholder.appendChild(container);
-                
-                // Add edit overlay
-                this.addEditOverlay(placeholder, cardId);
+                // Update display
+                this.updateCardDisplay(placeholder, imageData);
             };
             img.src = event.target.result;
         };
@@ -1493,6 +1343,9 @@ class PhotoLayoutEditor {
                 this.setupDropZone(placeholder, cardId);
             }
         }
+        
+        // Update layout state after deletion
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     setupEditOverlay(placeholder) {
@@ -1546,12 +1399,18 @@ class PhotoLayoutEditor {
             card.imageSettings = null;
             this.sessionManager.saveState('Delete Image');
         }
+        
+        // Update layout state after deletion
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     editImage(placeholder) {
         // Implement image editing functionality
         // This can be expanded later with rotation, zoom, etc.
         console.log('Edit image functionality to be implemented');
+        
+        // Update layout state after edit
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
     resetProject() {
@@ -1576,6 +1435,9 @@ class PhotoLayoutEditor {
             // Save state
             this.sessionManager.saveState('Reset Project');
         }
+        
+        // Update layout state after reset
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 }
 
