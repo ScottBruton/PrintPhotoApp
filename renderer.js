@@ -910,6 +910,8 @@ class PhotoLayoutEditor {
                         margin: 0;
                     }
                     body {
+                        width: 210mm;
+                        height: 297mm;
                         margin: 0;
                         padding: 0;
                     }

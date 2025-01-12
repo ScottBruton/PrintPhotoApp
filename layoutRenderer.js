@@ -47,8 +47,8 @@ class LayoutRenderer {
         .photo-placeholder {
             position: absolute;
             box-sizing: border-box;
-            background: #fff;
-            border: 1px solid #ddd;
+            background: transparent; /* Set the background to transparent */
+            border: none; /* Remove the border if necessary */
         }
         .photo-placeholder .image-container {
             width: 100%;
