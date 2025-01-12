@@ -31,24 +31,35 @@ class LayoutRenderer {
         body {
             margin: 0;
             padding: 0;
+            background: #f0f0f0;
         }
         .a4-page {
             width: 210mm;
             height: 297mm;
             position: relative;
             page-break-after: always;
-            margin: 0;
+            margin: 0 auto;
             padding: 0;
             background: white;
             display: block !important;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         .photo-placeholder {
             position: absolute;
+            box-sizing: border-box;
+            background: #fff;
+            border: 1px solid #ddd;
         }
-        .photo-placeholder img {
+        .photo-placeholder .image-container {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            position: relative;
+            overflow: hidden;
+        }
+        .photo-placeholder img {
+            position: absolute;
+            left: 50%;
+            top: 50%;
         }
         .edit-overlay, .page-delete-btn {
             display: none !important;
@@ -57,9 +68,15 @@ class LayoutRenderer {
             body {
                 width: 210mm;
                 height: 297mm;
+                background: none;
             }
             .a4-page {
-                page-break-after: always;
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+            .photo-placeholder {
+                border: none;
             }
         }
     </style>
@@ -150,14 +167,6 @@ class LayoutRenderer {
                 <div class="image-container" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
                     <img src="${image.src}" 
                         style="${imgStyle} position: absolute; left: 50%; top: 50%; transform: ${transform.join(' ')};">
-                </div>
-                <div class="edit-overlay">
-                    <button class="edit-btn" onclick="window.rendererInstance.setupImageEditor(this.closest('.photo-placeholder').querySelector('.image-container'))">
-                        <img src="asset/edit.svg" alt="Edit">
-                    </button>
-                    <button class="delete-btn" onclick="window.rendererInstance.deleteImage(this.closest('.photo-placeholder'))">
-                        <img src="asset/delete.svg" alt="Delete">
-                    </button>
                 </div>
             `;
         }
