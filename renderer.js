@@ -1105,6 +1105,20 @@ class PhotoLayoutEditor {
             updatePreview();
             saveState();
         };
+
+        document.getElementById('rotateLeft').onclick = () => {
+            editState.rotation = (editState.rotation - 90 + 360) % 360;
+            rotationInput.value = editState.rotation;
+            updatePreview();
+            saveState();
+        };
+        
+        document.getElementById('rotateRight').onclick = () => {
+            editState.rotation = (editState.rotation + 90) % 360;
+            rotationInput.value = editState.rotation;
+            updatePreview();
+            saveState();
+        };
         
         // Undo handler
         document.getElementById('undoEdit').onclick = () => {
