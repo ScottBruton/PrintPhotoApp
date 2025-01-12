@@ -994,14 +994,15 @@ class PhotoLayoutEditor {
         const history = [];
         let historyIndex = -1;
         
-        // Clear and setup preview container
         preview.innerHTML = '';
         const previewContainer = document.createElement('div');
         previewContainer.className = 'image-container';
-        previewContainer.style.width = '100%';
-        previewContainer.style.height = '100%';
+        previewContainer.style.width = `${card.size.width}mm`;
+        previewContainer.style.height = `${card.size.height}mm`;
         previewContainer.style.position = 'relative';
         previewContainer.style.overflow = 'hidden';
+
+       
 
         // Clone and setup image
         const imgClone = img.cloneNode(true);
