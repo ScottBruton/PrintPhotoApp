@@ -119,9 +119,16 @@ class LayoutRenderer {
         if (image) {
             const containerAspect = size.width / size.height;
             const imageAspect = image.originalWidth / image.originalHeight;
-            const imgStyle = containerAspect > imageAspect ? 
-                'width: auto; height: 100%;' : 
-                'width: 100%; height: auto;';
+            
+            // Determine image dimensions based on fit setting
+            let imgStyle = '';
+            if (imageSettings.fit === 'fill') {
+                imgStyle = 'width: 100%; height: 100%; object-fit: fill;';
+            } else {
+                imgStyle = containerAspect > imageAspect ? 
+                    'width: auto; height: 100%; object-fit: contain;' : 
+                    'width: 100%; height: auto; object-fit: contain;';
+            }
 
             // Generate transform style for image
             const transform = [];
@@ -140,7 +147,7 @@ class LayoutRenderer {
             }
 
             cardHtml += `
-                <div class="image-container">
+                <div class="image-container" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
                     <img src="${image.src}" 
                         style="${imgStyle} position: absolute; left: 50%; top: 50%; transform: ${transform.join(' ')};">
                 </div>
@@ -167,6 +174,40 @@ class LayoutRenderer {
         if (!card) return null;
 
         return this.generateCardHTML(card);
+    }
+
+    generateEditorPreviewHTML(card) {
+        const { image, imageSettings } = card;
+        if (!image) return '';
+
+        const containerAspect = card.size.width / card.size.height;
+        const imageAspect = image.originalWidth / image.originalHeight;
+        const imgStyle = containerAspect > imageAspect ? 
+            'width: auto; height: 100%;' : 
+            'width: 100%; height: auto;';
+
+        // Generate transform style for image
+        const transform = [];
+        transform.push('translate(-50%, -50%)'); // Center the image
+        
+        if (imageSettings) {
+            if (imageSettings.translateX || imageSettings.translateY) {
+                transform.push(`translate(${imageSettings.translateX}px, ${imageSettings.translateY}px)`);
+            }
+            if (imageSettings.rotation) {
+                transform.push(`rotate(${imageSettings.rotation}deg)`);
+            }
+            if (imageSettings.zoom) {
+                transform.push(`scale(${imageSettings.zoom / 100})`);
+            }
+        }
+
+        return `
+            <div class="image-container" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+                <img src="${image.src}" 
+                    style="${imgStyle} position: absolute; left: 50%; top: 50%; transform: ${transform.join(' ')};">
+            </div>
+        `;
     }
 }
 

@@ -549,10 +549,33 @@ class PhotoLayoutEditor {
 
     updateCardDisplay(placeholder, imageData) {
         placeholder.innerHTML = '';
+        
+        // Create image container
+        const container = document.createElement('div');
+        container.className = 'image-container';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.position = 'relative';
+        container.style.overflow = 'hidden';
+        
+        // Create and setup image
         const img = document.createElement('img');
         img.src = imageData.src;
-        placeholder.appendChild(img);
-        this.addEditOverlay(placeholder);
+        img.style.position = 'absolute';
+        img.style.left = '50%';
+        img.style.top = '50%';
+        img.style.transform = 'translate(-50%, -50%)';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        
+        // Add image to container
+        container.appendChild(img);
+        placeholder.appendChild(container);
+        
+        // Add edit overlay with cardId
+        const cardId = placeholder.id;
+        this.addEditOverlay(placeholder, cardId);
         
         // Update layout state after display update
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
@@ -961,16 +984,34 @@ class PhotoLayoutEditor {
             zoom: card.imageSettings.zoom || 100,
             rotation: card.imageSettings.rotation || 0,
             translateX: card.imageSettings.translateX || 0,
-            translateY: card.imageSettings.translateY || 0
+            translateY: card.imageSettings.translateY || 0,
+            fit: card.imageSettings.fit || 'contain',
+            width: card.imageSettings.width || '100%',
+            height: card.imageSettings.height || '100%',
+            objectFit: card.imageSettings.objectFit || 'contain'
         };
         
         const history = [];
         let historyIndex = -1;
         
+        // Clear and setup preview container
         preview.innerHTML = '';
         const previewContainer = document.createElement('div');
         previewContainer.className = 'image-container';
+        previewContainer.style.width = '100%';
+        previewContainer.style.height = '100%';
+        previewContainer.style.position = 'relative';
+        previewContainer.style.overflow = 'hidden';
+
+        // Clone and setup image
         const imgClone = img.cloneNode(true);
+        imgClone.style.position = 'absolute';
+        imgClone.style.left = '50%';
+        imgClone.style.top = '50%';
+        imgClone.style.objectFit = editState.objectFit;
+        imgClone.style.width = editState.width;
+        imgClone.style.height = editState.height;
+        
         previewContainer.appendChild(imgClone);
         preview.appendChild(previewContainer);
         
@@ -992,6 +1033,9 @@ class PhotoLayoutEditor {
             }
             
             imgClone.style.transform = transform.join(' ');
+            imgClone.style.objectFit = editState.objectFit;
+            imgClone.style.width = editState.width;
+            imgClone.style.height = editState.height;
         };
         
         const saveState = () => {
@@ -1001,6 +1045,7 @@ class PhotoLayoutEditor {
             
             // Save to session state
             this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
         };
         
         // Initialize controls with current values
@@ -1009,46 +1054,58 @@ class PhotoLayoutEditor {
         zoomInput.value = editState.zoom;
         rotationInput.value = editState.rotation;
         
-        // Zoom control
-        zoomInput.oninput = (e) => {
-            editState.zoom = parseInt(e.target.value);
+        // Save initial state
+        saveState();
+        
+        // Zoom handler
+        zoomInput.oninput = () => {
+            editState.zoom = parseInt(zoomInput.value);
             updatePreview();
         };
+        zoomInput.onchange = () => saveState();
         
-        // Rotation control
-        rotationInput.oninput = (e) => {
-            editState.rotation = parseInt(e.target.value);
+        // Rotation handler
+        rotationInput.oninput = () => {
+            editState.rotation = parseInt(rotationInput.value);
             updatePreview();
         };
+        rotationInput.onchange = () => saveState();
         
-        document.getElementById('rotateLeft').onclick = () => {
-            editState.rotation = (editState.rotation - 90 + 360) % 360;
-            rotationInput.value = editState.rotation;
-            updatePreview();
-            saveState();
-        };
-        
-        document.getElementById('rotateRight').onclick = () => {
-            editState.rotation = (editState.rotation + 90) % 360;
-            rotationInput.value = editState.rotation;
-            updatePreview();
-            saveState();
-        };
-        
+        // Fit Image button
         document.getElementById('fitImage').onclick = () => {
             editState.zoom = 100;
-            zoomInput.value = 100;
+            editState.translateX = 0;
+            editState.translateY = 0;
+            editState.fit = 'contain';
+            editState.objectFit = 'contain';
+            editState.width = '100%';
+            editState.height = '100%';
+            
+            zoomInput.value = editState.zoom;
+            rotationInput.value = editState.rotation;
+            
             updatePreview();
             saveState();
         };
         
+        // Fill Image button
         document.getElementById('fillImage').onclick = () => {
-            editState.zoom = 200;
-            zoomInput.value = 200;
+            editState.zoom = 100;
+            editState.translateX = 0;
+            editState.translateY = 0;
+            editState.fit = 'fill';
+            editState.objectFit = 'fill';
+            editState.width = '100%';
+            editState.height = '100%';
+            
+            zoomInput.value = editState.zoom;
+            rotationInput.value = editState.rotation;
+            
             updatePreview();
             saveState();
         };
         
+        // Undo handler
         document.getElementById('undoEdit').onclick = () => {
             if (historyIndex > 0) {
                 historyIndex--;
@@ -1056,11 +1113,14 @@ class PhotoLayoutEditor {
                 zoomInput.value = editState.zoom;
                 rotationInput.value = editState.rotation;
                 updatePreview();
+                
                 // Update session state
                 this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+                this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             }
         };
         
+        // Redo handler
         document.getElementById('redoEdit').onclick = () => {
             if (historyIndex < history.length - 1) {
                 historyIndex++;
@@ -1068,13 +1128,16 @@ class PhotoLayoutEditor {
                 zoomInput.value = editState.zoom;
                 rotationInput.value = editState.rotation;
                 updatePreview();
+                
                 // Update session state
                 this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+                this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
             }
         };
         
+        // Apply changes handler
         document.getElementById('applyChanges').onclick = () => {
-            // Apply final transform to original image
+            // Update the original image with current settings
             const transform = [];
             transform.push('translate(-50%, -50%)');
             
@@ -1090,47 +1153,43 @@ class PhotoLayoutEditor {
                 transform.push(`scale(${editState.zoom / 100})`);
             }
             
+            // Update the original image
             img.style.transform = transform.join(' ');
+            img.style.objectFit = editState.objectFit;
+            img.style.width = editState.width;
+            img.style.height = editState.height;
             
             // Save final state to session
             this.sessionManager.updateCardImageSettings(pageNumber, cardId, { ...editState });
+            this.sessionManager.saveState('Edit Image');
             
+            // Update layout state
+            this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+            
+            // Close modal
             editorModal.style.display = 'none';
         };
         
+        // Cancel changes handler
         document.getElementById('cancelChanges').onclick = () => {
+            // Restore original settings
+            Object.assign(editState, card.imageSettings);
+            
+            // Update the original image back to its previous state
+            img.style.transform = `translate(-50%, -50%) 
+                translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)
+                rotate(${card.imageSettings.rotation}deg)
+                scale(${card.imageSettings.zoom / 100})`;
+            img.style.objectFit = card.imageSettings.objectFit;
+            img.style.width = card.imageSettings.width;
+            img.style.height = card.imageSettings.height;
+            
+            // Close modal
             editorModal.style.display = 'none';
         };
         
-        // Initialize drag functionality
-        let isDragging = false;
-        let startX, startY;
-        
-        previewContainer.onmousedown = (e) => {
-            isDragging = true;
-            startX = e.clientX - editState.translateX;
-            startY = e.clientY - editState.translateY;
-        };
-        
-        document.onmousemove = (e) => {
-            if (isDragging) {
-                editState.translateX = e.clientX - startX;
-                editState.translateY = e.clientY - startY;
-                updatePreview();
-            }
-        };
-        
-        document.onmouseup = () => {
-            if (isDragging) {
-                isDragging = false;
-                saveState();
-            }
-        };
-        
-        // Initialize preview with current settings
+        // Initialize preview
         updatePreview();
-        saveState(); // Save initial state
-        editorModal.style.display = 'block';
     }
 
     closeModal() {
@@ -1280,6 +1339,12 @@ class PhotoLayoutEditor {
     }
 
     addEditOverlay(placeholder, cardId) {
+        // Remove any existing overlay first
+        const existingOverlay = placeholder.querySelector('.edit-overlay');
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+
         const editOverlay = document.createElement('div');
         editOverlay.className = 'edit-overlay';
         
@@ -1288,7 +1353,7 @@ class PhotoLayoutEditor {
         deleteButton.className = 'delete-btn';
         deleteButton.innerHTML = '×';
         deleteButton.onclick = (e) => {
-            e.stopPropagation(); // Stop event from bubbling up
+            e.stopPropagation();
             this.deleteImage(placeholder, cardId);
         };
         
@@ -1297,23 +1362,27 @@ class PhotoLayoutEditor {
         editButton.className = 'edit-btn';
         editButton.innerHTML = '✎';
         editButton.onclick = (e) => {
-            e.stopPropagation(); // Stop event from bubbling up
-            this.setupImageEditor(placeholder);
+            console.log('Edit button clicked');
+            e.stopPropagation();
+            const imageContainer = placeholder.querySelector('.image-container');
+            console.log('Image container found:', imageContainer);
+            if (imageContainer) {
+                document.getElementById('imageEditorModal').style.display = 'block';
+                this.setupImageEditor(imageContainer);
+                console.log('Image editor setup complete');
+            }
         };
         
         // Add buttons to overlay
         editOverlay.appendChild(editButton);
         editOverlay.appendChild(deleteButton);
-        
-        // Prevent clicks on the overlay from triggering the placeholder click
-        editOverlay.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
+        console.log('Edit overlay created');
+        editOverlay.onclick = (e) => e.stopPropagation();
         
         placeholder.appendChild(editOverlay);
+        console.log('Edit overlay added to placeholder');
     }
 
-    // Add method to handle image deletion
     deleteImage(placeholder, cardId) {
         const confirmed = confirm('Are you sure you want to delete this image?');
         if (confirmed) {
@@ -1345,71 +1414,6 @@ class PhotoLayoutEditor {
         }
         
         // Update layout state after deletion
-        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
-    }
-
-    setupEditOverlay(placeholder) {
-        // Remove any existing overlay
-        const existingOverlay = placeholder.querySelector('.edit-overlay');
-        if (existingOverlay) {
-            existingOverlay.remove();
-        }
-
-        // Create edit overlay
-        const editOverlay = document.createElement('div');
-        editOverlay.className = 'edit-overlay';
-        
-        // Create delete button
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'delete-btn';
-        deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-        deleteButton.onclick = () => this.deleteImage(placeholder);
-        
-        // Create edit button
-        const editButton = document.createElement('button');
-        editButton.className = 'edit-btn';
-        editButton.innerHTML = '<i class="fas fa-edit"></i>';
-        editButton.onclick = () => this.editImage(placeholder);
-        
-        // Add buttons to overlay
-        editOverlay.appendChild(editButton);
-        editOverlay.appendChild(deleteButton);
-        
-        // Add overlay to placeholder
-        placeholder.appendChild(editOverlay);
-    }
-
-    deleteImage(placeholder) {
-        const imageContainer = placeholder.querySelector('.image-container');
-        if (imageContainer) {
-            imageContainer.remove();
-        }
-        
-        const editOverlay = placeholder.querySelector('.edit-overlay');
-        if (editOverlay) {
-            editOverlay.remove();
-        }
-
-        // Update session state
-        const cardId = placeholder.id;
-        const pageNumber = this.sessionManager.sessionData.currentPage + 1;
-        const card = this.sessionManager.getCard(pageNumber, cardId);
-        if (card) {
-            card.image = null;
-            card.imageSettings = null;
-            this.sessionManager.saveState('Delete Image');
-        }
-        
-        // Update layout state after deletion
-        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
-    }
-
-    editImage(placeholder) {
-        // Implement image editing functionality
-        // This can be expanded later with rotation, zoom, etc.
-        console.log('Edit image functionality to be implemented');
-        
-        // Update layout state after edit
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
     }
 
