@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("electron", {
       "install-update",
       "restart-app",
       "create-main-window",
+      "save-temp-html"
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
@@ -26,5 +27,6 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.invoke("win-print-file", { filePath, printerName }),
     getTempFile: (filename) => ipcRenderer.invoke("get-temp-file", filename),
   },
-  createTempPDF: (htmlContent) => ipcRenderer.invoke("create-temp-pdf", htmlContent)
+  createTempPDF: (htmlContent) => ipcRenderer.invoke("create-temp-pdf", htmlContent),
+  saveTempHtml: (html) => ipcRenderer.invoke("save-temp-html", html)
 });

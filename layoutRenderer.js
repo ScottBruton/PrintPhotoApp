@@ -12,10 +12,69 @@ class LayoutRenderer {
         };
     }
 
-    setLayoutState(sessionData) {
+    async setLayoutState(sessionData) {
         // Deep clone the session data to avoid reference issues
         this.layoutState.pages = JSON.parse(JSON.stringify(sessionData.pages));
         this.layoutState.currentPage = sessionData.currentPage;
+
+        // Generate complete HTML document
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Current Layout</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .a4-page {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            page-break-after: always;
+            margin: 0;
+            padding: 0;
+            background: white;
+            display: block !important;
+        }
+        .photo-placeholder {
+            position: absolute;
+        }
+        .photo-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .edit-overlay, .page-delete-btn {
+            display: none !important;
+        }
+        @media print {
+            body {
+                width: 210mm;
+                height: 297mm;
+            }
+            .a4-page {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    ${this.generateHTML()}
+</body>
+</html>`;
+
+        // Save to temp file using electron API
+        try {
+            await window.electron.invoke('save-temp-html', html);
+        } catch (error) {
+            console.error('Error saving layout HTML:', error);
+        }
     }
 
     generateHTML() {

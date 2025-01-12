@@ -9,6 +9,10 @@ const UpdateChecker = require("./update-checker");
 const os = require('os');
 const { jsPDF } = require('jspdf');
 const html2canvas = require('html2canvas');
+const { setupIpcHandlers } = require('./electron-utils');
+
+// Setup IPC handlers
+setupIpcHandlers();
 
 try {
   if (process.argv.includes("--dev-reload")) {
