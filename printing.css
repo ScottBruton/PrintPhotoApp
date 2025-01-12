@@ -1,310 +1,318 @@
 .print-dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  overflow: hidden;
 }
 
 .print-dialog {
-    display: grid;
-    grid-template-columns: 350px 1fr;
-    gap: 20px;
-    width: 100%;
-    height: 100%;
-    background: #f5f5f5;
-    color: #333;
-    overflow: hidden;
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+  background: #f5f5f5;
+  color: #333;
+  overflow: hidden;
 }
 
 .print-settings {
-    background: rgb(255, 255, 255);
-    padding: 20px;
-    border-right: 1px solid #ddd;
-    overflow-y: auto;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    height: 100%; /* Or a fixed height, e.g., height: 500px; */
-    max-height: 100vh; /* Prevent it from exceeding the viewport height */
+  background: rgb(255, 255, 255);
+  padding: 20px;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  height: 100%; /* Or a fixed height, e.g., height: 500px; */
+  max-height: 100vh; /* Prevent it from exceeding the viewport height */
 }
 
 .print-settings::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 .print-settings::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+  background: #f1f1f1;
+  border-radius: 4px;
 }
 
 .print-settings::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+  background: #888;
+  border-radius: 4px;
 }
 
 .print-settings::-webkit-scrollbar-thumb:hover {
-    background: #555;
+  background: #555;
 }
 
 .settings-section {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #090909;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #090909;
 }
 
 .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .section-header h3 {
-    margin: 0;
-    font-size: 16px;
-    color: #333;
+  margin: 0;
+  font-size: 16px;
+  color: #333;
 }
 
 .printer-search {
-    margin: 10px 0;
+  margin: 10px 0;
 }
 
 .printer-search input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .printer-list {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .copies-input input {
-    width: 80px;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .layout-options,
 .pages-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .page-ranges {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-top: 8px;
-    width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 8px;
+  width: 100%;
 }
 
 .dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .print-btn,
 .cancel-btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
 }
 
 .print-btn {
-    background: #007bff;
-    color: white;
+  background: #007bff;
+  color: white;
 }
 
 .print-btn:hover {
-    background: #0056b3;
+  background: #0056b3;
 }
 
 .cancel-btn {
-    background: #6c757d;
-    color: white;
+  background: #6c757d;
+  color: white;
 }
 
 .cancel-btn:hover {
-    background: #5a6268;
+  background: #5a6268;
 }
 
 .print-preview {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: #e9ecef;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .preview-toolbar {
-    padding: 10px;
-    background: white;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
+  padding: 10px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
 }
 
 .preview-content {
-    flex: 1;
-    overflow: auto;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .preview-content::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 .preview-content::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+  background: #f1f1f1;
+  border-radius: 4px;
 }
 
 .preview-content::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
+  background: #888;
+  border-radius: 4px;
 }
 
 .preview-content::-webkit-scrollbar-thumb:hover {
-    background: #555;
+  background: #555;
 }
 
 .preview-content .a4-page {
-    background: white;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    transform-origin: center;
-    max-width: 95%;
-    max-height: 95%;
-    margin: auto;
-    transform: scale(1);
+  background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  transform-origin: center;
+  max-width: 95%;
+  max-height: 95%;
+  margin: auto;
+  transform: scale(1);
 }
 
 /* Buttons and controls */
 .refresh-btn,
 .preview-toolbar button {
-    padding: 6px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
 }
 
 .refresh-btn:hover,
 .preview-toolbar button:hover {
-    background: #f8f9fa;
+  background: #f8f9fa;
 }
 
 #zoomLevel {
-    min-width: 60px;
-    text-align: center;
+  min-width: 60px;
+  text-align: center;
 }
 
 .quality-settings {
-    margin: 10px 0;
+  margin: 10px 0;
 }
 
 .quality-select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background: white;
-    font-size: 14px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
 }
 
 .quality-select:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
 }
 
 /* Add these styles for the toast */
 .toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 99999;
-    pointer-events: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  pointer-events: none;
 }
 
 .toast {
-    background-color: #4CAF50;
-    color: white;
-    padding: 16px 24px;
-    border-radius: 4px;
-    margin: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    display: flex;
-    align-items: center;
-    min-width: 200px;
-    opacity: 1;
-    pointer-events: auto;
-    font-size: 14px;
-    font-weight: 500;
-    animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-out 2.5s forwards;
+  background-color: #4caf50;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 4px;
+  margin: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+  opacity: 1;
+  pointer-events: auto;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-out 2.5s forwards;
 }
 
 @keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-    }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* Paper type options styling */
 .paper-type-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .paper-type-options label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .paper-type-options input[type="radio"] {
-    margin-right: 8px;
+  margin-right: 8px;
 }
 
 /* Match the style of other radio options */
 .paper-type-options label {
-    padding: 4px 0;
+  padding: 4px 0;
 }
 
 .paper-type-options input[type="radio"]:checked + span {
-    color: #007bff;
-} 
+  color: #007bff;
+}
+
+.print-preview-section {
+  flex: 1;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

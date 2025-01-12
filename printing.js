@@ -130,74 +130,77 @@ class PrintManager {
   }
 
   updatePrinterDropdown() {
-    console.log('\n=== PRINTER DROPDOWN UPDATE STARTED ===');
+    console.log("\n=== PRINTER DROPDOWN UPDATE STARTED ===");
     const select = this.dialog.querySelector("#printerSelect");
     const searchTerm = this.dialog
-        .querySelector("#printerSearch")
-        .value.toLowerCase();
+      .querySelector("#printerSearch")
+      .value.toLowerCase();
 
     // Store currently selected printer
     const selectedPrinterName = select.value;
-    console.log('Current selected printer before update:', selectedPrinterName);
+    console.log("Current selected printer before update:", selectedPrinterName);
 
     // Filter printers based on search term
     const filteredPrinters = this.printerList.filter((printer) =>
-        printer.name.toLowerCase().includes(searchTerm)
+      printer.name.toLowerCase().includes(searchTerm)
     );
 
     // Sort printers: Selected printer first, then physical printers, then virtual printers
     const sortedPrinters = filteredPrinters.sort((a, b) => {
-        // If one is the selected printer, it should come first
-        if (a.name === selectedPrinterName) return -1;
-        if (b.name === selectedPrinterName) return 1;
+      // If one is the selected printer, it should come first
+      if (a.name === selectedPrinterName) return -1;
+      if (b.name === selectedPrinterName) return 1;
 
-        // Then sort by virtual/physical status
-        const aIsVirtual = a.statusText.text === "Virtual Printer";
-        const bIsVirtual = b.statusText.text === "Virtual Printer";
-        if (aIsVirtual && !bIsVirtual) return 1;
-        if (!aIsVirtual && bIsVirtual) return -1;
+      // Then sort by virtual/physical status
+      const aIsVirtual = a.statusText.text === "Virtual Printer";
+      const bIsVirtual = b.statusText.text === "Virtual Printer";
+      if (aIsVirtual && !bIsVirtual) return 1;
+      if (!aIsVirtual && bIsVirtual) return -1;
 
-        // Finally sort alphabetically
-        return a.name.localeCompare(b.name);
+      // Finally sort alphabetically
+      return a.name.localeCompare(b.name);
     });
 
-    console.log('Total printers after filtering:', filteredPrinters.length);
+    console.log("Total printers after filtering:", filteredPrinters.length);
 
     // Clear existing options
     select.innerHTML = "";
 
     // Add filtered and sorted printers to dropdown
     sortedPrinters.forEach((printer) => {
-        const option = document.createElement("option");
-        option.value = printer.name;
+      const option = document.createElement("option");
+      option.value = printer.name;
 
-        // Create status indicator
-        let statusDot;
-        if (printer.statusText.text === "Virtual Printer") {
-            statusDot = "🔵"; // Blue dot for virtual printers
-        } else {
-            statusDot = printer.statusText.ready ? "🟢" : "🔴";
-        }
+      // Create status indicator
+      let statusDot;
+      if (printer.statusText.text === "Virtual Printer") {
+        statusDot = "🔵"; // Blue dot for virtual printers
+      } else {
+        statusDot = printer.statusText.ready ? "🟢" : "🔴";
+      }
 
-        option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
-        
-        // Set selected attribute if this is the selected printer
-        if (printer.name === selectedPrinterName) {
-            option.selected = true;
-            console.log('Found and marked selected printer:', printer.name);
-        }
+      option.innerHTML = `${statusDot} ${printer.name} - ${printer.statusText.text}`;
 
-        select.appendChild(option);
+      // Set selected attribute if this is the selected printer
+      if (printer.name === selectedPrinterName) {
+        option.selected = true;
+        console.log("Found and marked selected printer:", printer.name);
+      }
+
+      select.appendChild(option);
     });
 
     // Ensure the selected printer is still selected
     if (selectedPrinterName) {
-        select.value = selectedPrinterName;
-        console.log('Final selected printer:', select.value);
-        console.log('Selected printer text:', select.options[select.selectedIndex]?.text);
+      select.value = selectedPrinterName;
+      console.log("Final selected printer:", select.value);
+      console.log(
+        "Selected printer text:",
+        select.options[select.selectedIndex]?.text
+      );
     }
 
-    console.log('=== PRINTER DROPDOWN UPDATE COMPLETED ===\n');
+    console.log("=== PRINTER DROPDOWN UPDATE COMPLETED ===\n");
   }
 
   async validatePrintJob(settings) {
@@ -300,161 +303,188 @@ class PrintManager {
 
   async createTempFile(content) {
     try {
-        // Get renderer instance
-        const rendererInstance = window.rendererInstance;
-        if (!rendererInstance || !rendererInstance.sessionManager) {
-            throw new Error('Renderer instance not found');
-        }
+      // Get renderer instance
+      const rendererInstance = window.rendererInstance;
+      if (!rendererInstance || !rendererInstance.sessionManager) {
+        throw new Error("Renderer instance not found");
+      }
 
-        // Store current page to restore later
-        const currentPageIndex = rendererInstance.sessionManager.sessionData.currentPage;
+      // Store current page to restore later
+      const currentPageIndex =
+        rendererInstance.sessionManager.sessionData.currentPage;
 
-        // Create PDF document
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            hotfixes: ['px_scaling']
-        });
+      // Create PDF document
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        hotfixes: ["px_scaling"],
+      });
 
-        // Process each page
-        for (let i = 0; i < rendererInstance.sessionManager.sessionData.pages.length; i++) {
-            // Navigate to the page to render it
-            rendererInstance.sessionManager.sessionData.currentPage = i;
-            rendererInstance.navigatePage(0);
-
-            // Wait for images to load
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Hide empty placeholders
-            const emptyPlaceholders = document.querySelectorAll('.photo-placeholder:not(:has(img))');
-            emptyPlaceholders.forEach(placeholder => {
-                placeholder.style.display = 'none';
-            });
-
-            // Remove dotted borders
-            const placeholders = document.querySelectorAll('.photo-placeholder');
-            placeholders.forEach(placeholder => {
-                placeholder.style.border = 'none';
-                placeholder.style.backgroundColor = 'transparent';
-            });
-
-            // Hide edit overlays
-            const editOverlays = document.querySelectorAll('.edit-overlay');
-            editOverlays.forEach(overlay => {
-                overlay.style.display = 'none';
-            });
-
-            // Ensure images maintain their transforms
-            const images = document.querySelectorAll('.photo-placeholder img');
-            images.forEach(img => {
-                const container = img.closest('.image-container');
-                if (container) {
-                    const placeholder = container.closest('.photo-placeholder');
-                    const cardId = placeholder.id;
-                    const card = rendererInstance.sessionManager.getCard(i + 1, cardId);
-
-                    if (card && card.imageSettings) {
-                        const transform = [];
-                        transform.push('translate(-50%, -50%)');
-
-                        if (card.imageSettings.translateX || card.imageSettings.translateY) {
-                            transform.push(`translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`);
-                        }
-
-                        if (card.imageSettings.rotation) {
-                            transform.push(`rotate(${card.imageSettings.rotation}deg)`);
-                        }
-
-                        if (card.imageSettings.zoom) {
-                            transform.push(`scale(${card.imageSettings.zoom / 100})`);
-                        }
-
-                        img.style.transform = transform.join(' ');
-                        img.style.position = 'absolute';
-                        img.style.left = '50%';
-                        img.style.top = '50%';
-
-                        // Set size based on aspect ratio
-                        const containerAspect = card.size.width / card.size.height;
-                        const imageAspect = card.image.originalWidth / card.image.originalHeight;
-
-                        if (containerAspect > imageAspect) {
-                            img.style.width = 'auto';
-                            img.style.height = '100%';
-                        } else {
-                            img.style.width = '100%';
-                            img.style.height = 'auto';
-                        }
-                    }
-                }
-            });
-
-            // Capture the page with high resolution
-            const pageElement = document.getElementById('a4Page');
-            const canvas = await html2canvas(pageElement, {
-                scale: 4,  // Higher resolution
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                width: pageElement.offsetWidth,
-                height: pageElement.offsetHeight,
-                logging: false,
-                onclone: (clonedDoc) => {
-                    // Apply transforms to cloned images
-                    const clonedImages = clonedDoc.querySelectorAll('.photo-placeholder img');
-                    clonedImages.forEach(img => {
-                        const originalImg = document.querySelector(`img[src="${img.src}"]`);
-                        if (originalImg) {
-                            img.style.transform = originalImg.style.transform;
-                            img.style.width = originalImg.style.width;
-                            img.style.height = originalImg.style.height;
-                            img.style.position = originalImg.style.position;
-                            img.style.left = originalImg.style.left;
-                            img.style.top = originalImg.style.top;
-                        }
-                    });
-                }
-            });
-
-            // Add new page if not first page
-            if (i > 0) {
-                pdf.addPage();
-            }
-
-            // Add image to PDF (full A4 size)
-            pdf.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, 210, 297);
-
-            // Restore visibility of elements
-            emptyPlaceholders.forEach(placeholder => {
-                placeholder.style.display = 'block';
-            });
-            placeholders.forEach(placeholder => {
-                placeholder.style.border = '2px dashed #dee2e6';
-                placeholder.style.backgroundColor = '#f8f9fa';
-            });
-            editOverlays.forEach(overlay => {
-                overlay.style.display = 'block';
-            });
-        }
-
-        // Restore original page
-        rendererInstance.sessionManager.sessionData.currentPage = currentPageIndex;
+      // Process each page
+      for (
+        let i = 0;
+        i < rendererInstance.sessionManager.sessionData.pages.length;
+        i++
+      ) {
+        // Navigate to the page to render it
+        rendererInstance.sessionManager.sessionData.currentPage = i;
         rendererInstance.navigatePage(0);
 
-        // Save to temp file
-        const timestamp = new Date().getTime();
-        const tempPath = await window.electron.winPrint.getTempFile(`print_${timestamp}.pdf`);
-        await window.electron.savePDF({
-            path: tempPath,
-            data: pdf.output('arraybuffer')
+        // Wait for images to load
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Hide empty placeholders
+        const emptyPlaceholders = document.querySelectorAll(
+          ".photo-placeholder:not(:has(img))"
+        );
+        emptyPlaceholders.forEach((placeholder) => {
+          placeholder.style.display = "none";
         });
 
-        return tempPath;
+        // Remove dotted borders
+        const placeholders = document.querySelectorAll(".photo-placeholder");
+        placeholders.forEach((placeholder) => {
+          placeholder.style.border = "none";
+          placeholder.style.backgroundColor = "transparent";
+        });
+
+        // Hide edit overlays
+        const editOverlays = document.querySelectorAll(".edit-overlay");
+        editOverlays.forEach((overlay) => {
+          overlay.style.display = "none";
+        });
+
+        // Ensure images maintain their transforms
+        const images = document.querySelectorAll(".photo-placeholder img");
+        images.forEach((img) => {
+          const container = img.closest(".image-container");
+          if (container) {
+            const placeholder = container.closest(".photo-placeholder");
+            const cardId = placeholder.id;
+            const card = rendererInstance.sessionManager.getCard(i + 1, cardId);
+
+            if (card && card.imageSettings) {
+              const transform = [];
+              transform.push("translate(-50%, -50%)");
+
+              if (
+                card.imageSettings.translateX ||
+                card.imageSettings.translateY
+              ) {
+                transform.push(
+                  `translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`
+                );
+              }
+
+              if (card.imageSettings.rotation) {
+                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
+              }
+
+              if (card.imageSettings.zoom) {
+                transform.push(`scale(${card.imageSettings.zoom / 100})`);
+              }
+
+              img.style.transform = transform.join(" ");
+              img.style.position = "absolute";
+              img.style.left = "50%";
+              img.style.top = "50%";
+
+              // Set size based on aspect ratio
+              const containerAspect = card.size.width / card.size.height;
+              const imageAspect =
+                card.image.originalWidth / card.image.originalHeight;
+
+              if (containerAspect > imageAspect) {
+                img.style.width = "auto";
+                img.style.height = "100%";
+              } else {
+                img.style.width = "100%";
+                img.style.height = "auto";
+              }
+            }
+          }
+        });
+
+        // Capture the page with high resolution
+        const pageElement = document.getElementById("a4Page");
+        const canvas = await html2canvas(pageElement, {
+          scale: 4, // Higher resolution
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          width: pageElement.offsetWidth,
+          height: pageElement.offsetHeight,
+          logging: false,
+          onclone: (clonedDoc) => {
+            // Apply transforms to cloned images
+            const clonedImages = clonedDoc.querySelectorAll(
+              ".photo-placeholder img"
+            );
+            clonedImages.forEach((img) => {
+              const originalImg = document.querySelector(
+                `img[src="${img.src}"]`
+              );
+              if (originalImg) {
+                img.style.transform = originalImg.style.transform;
+                img.style.width = originalImg.style.width;
+                img.style.height = originalImg.style.height;
+                img.style.position = originalImg.style.position;
+                img.style.left = originalImg.style.left;
+                img.style.top = originalImg.style.top;
+              }
+            });
+          },
+        });
+
+        // Add new page if not first page
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        // Add image to PDF (full A4 size)
+        pdf.addImage(
+          canvas.toDataURL("image/jpeg", 1.0),
+          "JPEG",
+          0,
+          0,
+          210,
+          297
+        );
+
+        // Restore visibility of elements
+        emptyPlaceholders.forEach((placeholder) => {
+          placeholder.style.display = "block";
+        });
+        placeholders.forEach((placeholder) => {
+          placeholder.style.border = "2px dashed #dee2e6";
+          placeholder.style.backgroundColor = "#f8f9fa";
+        });
+        editOverlays.forEach((overlay) => {
+          overlay.style.display = "block";
+        });
+      }
+
+      // Restore original page
+      rendererInstance.sessionManager.sessionData.currentPage =
+        currentPageIndex;
+      rendererInstance.navigatePage(0);
+
+      // Save to temp file
+      const timestamp = new Date().getTime();
+      const tempPath = await window.electron.winPrint.getTempFile(
+        `print_${timestamp}.pdf`
+      );
+      await window.electron.savePDF({
+        path: tempPath,
+        data: pdf.output("arraybuffer"),
+      });
+
+      return tempPath;
     } catch (error) {
-        console.error('Error creating temp file:', error);
-        throw new Error(`Failed to create temporary file: ${error.message}`);
+      console.error("Error creating temp file:", error);
+      throw new Error(`Failed to create temporary file: ${error.message}`);
     }
   }
 
@@ -524,7 +554,7 @@ class PrintManager {
   createPrintDialog() {
     this.dialog = document.createElement("div");
     this.dialog.className = "print-dialog-overlay";
-
+    console.log("this.dialog", this.dialog);
     // Create the print preview instance
     this.printPreview = new PrintPreview();
 
@@ -621,16 +651,18 @@ class PrintManager {
                         <button class="cancel-btn" id="cancelPrint">Cancel</button>
                         <button class="print-btn" id="confirmPrint">Print</button>
                     </div>
-                    </div>
+                    </div>      
+                </div>
 
-                    
+                <div class="print-preview-section">
+                    <!-- Print preview will be inserted here -->
                 </div>
             </div>
         `;
 
-    // Get the print dialog element and insert the preview
-    const printDialog = this.dialog.querySelector(".print-dialog");
-    printDialog.appendChild(this.printPreview.getElement());
+    // Get the print preview section and insert the preview
+    const previewSection = this.dialog.querySelector(".print-preview-section");
+    previewSection.appendChild(this.printPreview.getElement());
 
     // Add event listeners
     this.setupEventListeners();
@@ -638,18 +670,27 @@ class PrintManager {
     // Add to document
     document.body.appendChild(this.dialog);
 
+    // Make dialog visible
+    this.dialog.style.display = "flex";
+
     // Add change event listener to printer select
-    const printerSelect = this.dialog.querySelector('#printerSelect');
-    printerSelect.addEventListener('change', (e) => {
-        console.log('\n=== PRINTER SELECTION CHANGED ===');
-        console.log('Previous printer:', this.currentSettings?.printer);
-        console.log('Newly selected printer:', e.target.value);
-        console.log('Selected printer text:', e.target.options[e.target.selectedIndex].text);
-        
-        this.currentSettings.printer = e.target.value;
-        
-        console.log('Settings updated - current printer:', this.currentSettings.printer);
-        console.log('=== PRINTER SELECTION COMPLETED ===\n');
+    const printerSelect = this.dialog.querySelector("#printerSelect");
+    printerSelect.addEventListener("change", (e) => {
+      console.log("\n=== PRINTER SELECTION CHANGED ===");
+      console.log("Previous printer:", this.currentSettings?.printer);
+      console.log("Newly selected printer:", e.target.value);
+      console.log(
+        "Selected printer text:",
+        e.target.options[e.target.selectedIndex].text
+      );
+
+      this.currentSettings.printer = e.target.value;
+
+      console.log(
+        "Settings updated - current printer:",
+        this.currentSettings.printer
+      );
+      console.log("=== PRINTER SELECTION COMPLETED ===\n");
     });
   }
 
@@ -866,146 +907,146 @@ class PrintManager {
 
   async getPrinterStatus(printerName) {
     try {
-        const printers = await window.electron.winPrint.getPrinters();
-        const printer = printers.find(p => p.name === printerName);
-        
-        if (!printer) {
-            return 'Unknown';
-        }
+      const printers = await window.electron.winPrint.getPrinters();
+      const printer = printers.find((p) => p.name === printerName);
 
-        // Map Windows printer status codes to readable states
-        const statusMap = {
-            0: 'Ready',  // PRINTER_STATUS_READY
-            1: 'Paused',
-            2: 'Error',
-            3: 'Pending Deletion',
-            4: 'Paper Jam',
-            5: 'Paper Out',
-            6: 'Manual Feed',
-            7: 'Paper Problem',
-            8: 'Offline',
-            9: 'IO Active',
-            10: 'Busy',
-            11: 'Printing',
-            12: 'Output Bin Full',
-            13: 'Not Available',
-            14: 'Waiting',
-            15: 'Processing',
-            16: 'Initializing',
-            17: 'Warming Up',
-            18: 'Toner Low',
-            19: 'No Toner',
-            20: 'Page Punt',
-            21: 'User Intervention Required',
-            22: 'Out of Memory',
-            23: 'Door Open',
-            24: 'Server Unknown',
-            25: 'Power Save',
-        };
+      if (!printer) {
+        return "Unknown";
+      }
 
-        // If printer is in power save mode or warming up, consider it "Ready"
-        if (printer.status === 25 || printer.status === 17) {
-            return 'Ready';
-        }
+      // Map Windows printer status codes to readable states
+      const statusMap = {
+        0: "Ready", // PRINTER_STATUS_READY
+        1: "Paused",
+        2: "Error",
+        3: "Pending Deletion",
+        4: "Paper Jam",
+        5: "Paper Out",
+        6: "Manual Feed",
+        7: "Paper Problem",
+        8: "Offline",
+        9: "IO Active",
+        10: "Busy",
+        11: "Printing",
+        12: "Output Bin Full",
+        13: "Not Available",
+        14: "Waiting",
+        15: "Processing",
+        16: "Initializing",
+        17: "Warming Up",
+        18: "Toner Low",
+        19: "No Toner",
+        20: "Page Punt",
+        21: "User Intervention Required",
+        22: "Out of Memory",
+        23: "Door Open",
+        24: "Server Unknown",
+        25: "Power Save",
+      };
 
-        // Return mapped status or 'Unknown' if status code isn't recognized
-        return statusMap[printer.status] || 'Unknown';
+      // If printer is in power save mode or warming up, consider it "Ready"
+      if (printer.status === 25 || printer.status === 17) {
+        return "Ready";
+      }
+
+      // Return mapped status or 'Unknown' if status code isn't recognized
+      return statusMap[printer.status] || "Unknown";
     } catch (error) {
-        console.error('Error getting printer status:', error);
-        return 'Unknown';
+      console.error("Error getting printer status:", error);
+      return "Unknown";
     }
   }
 
   async updatePrinterList() {
     try {
-        const result = await window.electron.winPrint.getPrinters();
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to get printers');
-        }
+      const result = await window.electron.winPrint.getPrinters();
+      if (!result.success) {
+        throw new Error(result.error || "Failed to get printers");
+      }
 
-        const select = this.dialog.querySelector('#printerSelect');
-        select.innerHTML = '';
+      const select = this.dialog.querySelector("#printerSelect");
+      select.innerHTML = "";
 
-        for (const printer of result.printers) {
-            const status = this.interpretPrinterStatus(printer.status, printer);
-            const option = document.createElement('option');
-            option.value = printer.name;
-            
-            // Create status indicator
-            const statusColor = this.getPrinterStatusColor(status);
-            option.innerHTML = `<span style="color: ${statusColor}">●</span> ${printer.name} - ${status}`;
-            
-            // Allow all physical printers to be selected, regardless of status
-            option.disabled = false;
-            
-            select.appendChild(option);
-        }
+      for (const printer of result.printers) {
+        const status = this.interpretPrinterStatus(printer.status, printer);
+        const option = document.createElement("option");
+        option.value = printer.name;
 
-        // Show total number of printers found
-        console.log(`Found ${result.printers.length} physical printers`);
+        // Create status indicator
+        const statusColor = this.getPrinterStatusColor(status);
+        option.innerHTML = `<span style="color: ${statusColor}">●</span> ${printer.name} - ${status}`;
+
+        // Allow all physical printers to be selected, regardless of status
+        option.disabled = false;
+
+        select.appendChild(option);
+      }
+
+      // Show total number of printers found
+      console.log(`Found ${result.printers.length} physical printers`);
     } catch (error) {
-        console.error('Error updating printer list:', error);
+      console.error("Error updating printer list:", error);
     }
   }
 
   interpretPrinterStatus(statusCode, printer) {
     // Status codes for network printers might be different
     if (printer.isNetwork) {
-        // For network printers, assume ready unless explicitly offline
-        if (statusCode === 0) return 'Ready';
-        if (statusCode & 0x400000) return 'Offline'; // PRINTER_STATUS_OFFLINE
-        return 'Ready';  // Default to Ready for network printers
+      // For network printers, assume ready unless explicitly offline
+      if (statusCode === 0) return "Ready";
+      if (statusCode & 0x400000) return "Offline"; // PRINTER_STATUS_OFFLINE
+      return "Ready"; // Default to Ready for network printers
     }
 
     // Status mapping for local printers
     const statusMap = {
-        0: 'Ready',
-        1: 'Paused',
-        2: 'Error',
-        3: 'Pending Deletion',
-        4: 'Paper Jam',
-        5: 'Paper Out',
-        6: 'Manual Feed',
-        7: 'Paper Problem',
-        8: 'Offline',
-        9: 'IO Active',
-        10: 'Busy',
-        11: 'Printing',
-        12: 'Output Bin Full',
-        13: 'Not Available',
-        14: 'Waiting',
-        15: 'Processing',
-        16: 'Initializing',
-        17: 'Warming Up',
-        18: 'Toner Low',
-        19: 'No Toner',
-        20: 'Page Punt',
-        21: 'User Intervention Required',
-        22: 'Out of Memory',
-        23: 'Door Open',
-        24: 'Server Unknown',
-        25: 'Power Save'
+      0: "Ready",
+      1: "Paused",
+      2: "Error",
+      3: "Pending Deletion",
+      4: "Paper Jam",
+      5: "Paper Out",
+      6: "Manual Feed",
+      7: "Paper Problem",
+      8: "Offline",
+      9: "IO Active",
+      10: "Busy",
+      11: "Printing",
+      12: "Output Bin Full",
+      13: "Not Available",
+      14: "Waiting",
+      15: "Processing",
+      16: "Initializing",
+      17: "Warming Up",
+      18: "Toner Low",
+      19: "No Toner",
+      20: "Page Punt",
+      21: "User Intervention Required",
+      22: "Out of Memory",
+      23: "Door Open",
+      24: "Server Unknown",
+      25: "Power Save",
     };
 
     // Special cases
-    if (statusCode === 25 || statusCode === 17) return 'Ready';  // Power Save or Warming Up
-    if (printer.isReady) return 'Ready';
+    if (statusCode === 25 || statusCode === 17) return "Ready"; // Power Save or Warming Up
+    if (printer.isReady) return "Ready";
 
-    return statusMap[statusCode] || 'Ready';  // Default to Ready if status is unknown
+    return statusMap[statusCode] || "Ready"; // Default to Ready if status is unknown
   }
 
   getPrinterStatusColor(status) {
     const statusColors = {
-        'Ready': '#2ecc71',      // Green
-        'Power Save': '#2ecc71', // Green
-        'Warming Up': '#2ecc71', // Green
-        'Printing': '#f1c40f',   // Yellow
-        'Busy': '#f1c40f',       // Yellow
-        'Offline': '#e74c3c',    // Red
-        'Error': '#e74c3c',      // Red
-        'Unknown': '#e74c3c'     // Red
+      Ready: "#2ecc71", // Green
+      "Power Save": "#2ecc71", // Green
+      "Warming Up": "#2ecc71", // Green
+      Printing: "#f1c40f", // Yellow
+      Busy: "#f1c40f", // Yellow
+      Offline: "#e74c3c", // Red
+      Error: "#e74c3c", // Red
+      Unknown: "#e74c3c", // Red
     };
-    return statusColors[status] || '#95a5a6'; // Default gray
+    return statusColors[status] || "#95a5a6"; // Default gray
   }
 }
 
