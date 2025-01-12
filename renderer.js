@@ -898,77 +898,28 @@ class PhotoLayoutEditor {
     }
 
     showPrintPreview() {
-        // Create print preview window
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Print Preview</title>
-                <style>
-                    @page {
-                        size: A4;
-                        margin: 0;
-                    }
-                    body {
-                        width: 210mm;
-                        height: 297mm;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .a4-page {
-                        width: 210mm;
-                        height: 297mm;
-                        position: relative;
-                        page-break-after: always;
-                        margin: 0;
-                        padding: 0;
-                        background: white;
-                    }
-                    .photo-placeholder {
-                        position: absolute;
-                    }
-                    .photo-placeholder img {
-                        width: 100%;
-                        height: 100%;
-                        object-fit: contain;
-                    }
-                    .edit-overlay, .page-delete-btn {
-                        display: none !important;
-                    }
-                    @media print {
-                        body {
-                            width: 210mm;
-                            height: 297mm;
-                        }
-                        .a4-page {
-                            page-break-after: always;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                ${this.layoutRenderer.generateHTML()}
-                <script>
-                    window.onload = () => {
-                        // Hide empty placeholders
-                        document.querySelectorAll('.photo-placeholder:not(:has(img))').forEach(p => p.style.display = 'none');
-                        // Show all pages for printing
-                        document.querySelectorAll('.a4-page').forEach(p => p.style.display = 'block');
-                        // Remove borders and backgrounds
-                        document.querySelectorAll('.photo-placeholder').forEach(p => {
-                            p.style.border = 'none';
-                            p.style.backgroundColor = 'transparent';
-                        });
-                        // Print automatically
-                        window.print();
-                        // Close window after printing
-                        window.onafterprint = () => window.close();
-                    };
-                </script>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
+        // Get the HTML content from the layout renderer
+        const previewContent = this.layoutRenderer.generateHTML();
+        
+        // Create a temporary container to parse the HTML
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = previewContent;
+        
+        // Get all pages from the container
+        const pages = Array.from(tempContainer.querySelectorAll('.a4-page'));
+        
+        // Create a new PrintManager instance if it doesn't exist
+        if (!this.printManager) {
+            this.printManager = new PrintManager();
+        }
+        
+        // Create the print dialog and set up the preview
+        this.printManager.createPrintDialog();
+        
+        // Set the pages in the print preview
+        if (this.printManager.printPreview) {
+            this.printManager.printPreview.setPages(pages);
+        }
     }
 
     // Enhanced image handling with editing features
