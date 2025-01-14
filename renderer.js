@@ -1,3 +1,4 @@
+import layout from './layoutRenderer.js';
 // SessionStateManager to handle all session data
 class SessionStateManager {
   constructor() {
@@ -87,6 +88,7 @@ class SessionStateManager {
           fit: "contain",
         },
       };
+      layout.setCardSize(card, pageNumber);
       page.cards.push(card);
       this.saveState("Add Card");
       return card;
@@ -169,7 +171,7 @@ class SessionStateManager {
 class PhotoLayoutEditor {
   constructor() {
     this.sessionManager = new SessionStateManager();
-    this.layoutRenderer = new LayoutRenderer();
+    this.layoutRenderer = layout;
     this.initializeElements();
     this.bindEvents();
     // Make the instance globally available
@@ -1038,8 +1040,8 @@ class PhotoLayoutEditor {
       translateX: card.imageSettings.translateX || 0,
       translateY: card.imageSettings.translateY || 0,
       fit: card.imageSettings.fit || "contain",
-      width: card.imageSettings.width || "100%",
-      height: card.imageSettings.height || "100%",
+      width: card.size.width || "100%",
+      height: card.size.height || "100%",
       objectFit: card.imageSettings.objectFit || "contain",
     };
 

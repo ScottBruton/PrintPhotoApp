@@ -218,7 +218,35 @@ class LayoutRenderer {
             </div>
         `;
     }
+
+    setCardSize(cardOrSize, pageIndex) {
+        if (!this.layoutState.pages[pageIndex]) return;
+        
+        // Initialize size properties if they don't exist
+        if (!this.layoutState.pages[pageIndex].cardSize) {
+            this.layoutState.pages[pageIndex].cardSize = {
+                width: 0,
+                height: 0
+            };
+        }
+
+        if (typeof cardOrSize === 'string') {
+            // Parse size string (e.g., "100x150")
+            const [width, height] = cardOrSize.split('x').map(n => parseInt(n));
+            this.layoutState.pages[pageIndex].cardSize = { width, height };
+        } else if (cardOrSize && cardOrSize.size) {
+            // Handle card object
+            this.layoutState.pages[pageIndex].cardSize = {
+                width: cardOrSize.size.width,
+                height: cardOrSize.size.height
+            };
+        }
+    }
+
+    getCardSize(pageNumber) {
+        return this.layoutState.pages[pageNumber].cardSize;
+    }
 }
 
-// Make it globally available
-window.LayoutRenderer = LayoutRenderer;
+// Export the class as default instead of adding to window
+export default new LayoutRenderer();
