@@ -13,8 +13,8 @@ class LayoutRenderer {
     }
 
     async setLayoutState(sessionData) {
-        // Deep clone the session data to avoid reference issues
-        this.layoutState.pages = JSON.parse(JSON.stringify(sessionData.pages));
+        // Store a reference to the session data instead of cloning
+        this.layoutState.pages = sessionData.pages;
         this.layoutState.currentPage = sessionData.currentPage;
 
         // Generate complete HTML document
@@ -47,8 +47,8 @@ class LayoutRenderer {
         .photo-placeholder {
             position: absolute;
             box-sizing: border-box;
-            background: transparent; /* Set the background to transparent */
-            border: none; /* Remove the border if necessary */
+            background: transparent;
+            border: none;
         }
         .photo-placeholder .image-container {
             width: 100%;

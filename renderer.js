@@ -721,10 +721,7 @@ class PhotoLayoutEditor {
 
   navigatePage(direction) {
     const newPage = this.sessionManager.sessionData.currentPage + direction;
-    if (
-      newPage >= 0 &&
-      newPage < this.sessionManager.sessionData.pages.length
-    ) {
+    if (newPage >= 0 && newPage < this.sessionManager.sessionData.pages.length) {
       this.sessionManager.sessionData.currentPage = newPage;
       this.updatePageIndicator();
 
@@ -745,9 +742,7 @@ class PhotoLayoutEditor {
         this.pageContainer.appendChild(deleteBtn);
 
         // Recreate the layout with the page's size
-        const [width, height] = currentPage.pageSize
-          .split("x")
-          .map((n) => parseInt(n));
+        const [width, height] = currentPage.pageSize.split("x").map((n) => parseInt(n));
         const PAGE_WIDTH = 210;
         const PAGE_HEIGHT = 297;
         const MARGIN = 5;
@@ -757,9 +752,7 @@ class PhotoLayoutEditor {
         const availableHeight = PAGE_HEIGHT - 2 * MARGIN;
 
         const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
-        const rows = Math.floor(
-          (availableHeight + SPACING) / (height + SPACING)
-        );
+        const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
 
         // Recreate each card and restore its image if it exists
         currentPage.cards.forEach((card) => {
@@ -788,8 +781,7 @@ class PhotoLayoutEditor {
 
             // Set initial image styles for proper fitting
             const containerAspect = card.size.width / card.size.height;
-            const imageAspect =
-              card.image.originalWidth / card.image.originalHeight;
+            const imageAspect = card.image.originalWidth / card.image.originalHeight;
 
             if (containerAspect > imageAspect) {
               img.style.width = "auto";
@@ -809,10 +801,7 @@ class PhotoLayoutEditor {
               const transform = [];
               transform.push("translate(-50%, -50%)"); // Center the image
 
-              if (
-                card.imageSettings.translateX ||
-                card.imageSettings.translateY
-              ) {
+              if (card.imageSettings.translateX || card.imageSettings.translateY) {
                 transform.push(
                   `translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`
                 );
@@ -838,6 +827,9 @@ class PhotoLayoutEditor {
             this.addEditOverlay(placeholder, card.id);
           }
         });
+
+        // Update layout state after recreating the page
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
       }
     }
   }
