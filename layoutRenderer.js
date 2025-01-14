@@ -244,7 +244,15 @@ class LayoutRenderer {
     }
 
     getCardSize(pageNumber) {
-        return this.layoutState.pages[pageNumber].cardSize;
+        const page = this.layoutState.pages[pageNumber];
+        if (!page) return null;
+        
+        // If cardSize doesn't exist, try to get it from the first card
+        if (!page.cardSize && page.cards && page.cards.length > 0) {
+            return page.cards[0].size;
+        }
+        
+        return page.cardSize || null;
     }
 }
 

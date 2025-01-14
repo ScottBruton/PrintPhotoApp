@@ -1031,9 +1031,15 @@ class PhotoLayoutEditor {
     const placeholder = container.closest(".photo-placeholder");
     const cardId = placeholder.id;
     const pageNumber = this.sessionManager.sessionData.currentPage + 1;
-
+    
     // Get current settings from session state
     const card = this.sessionManager.getCard(pageNumber, cardId);
+    if (!card) return;  // Safety check
+    
+    // Use card's size directly
+    const previewWidth = card.size.width;
+    const previewHeight = card.size.height;
+
     const editState = {
       zoom: card.imageSettings.zoom || 100,
       rotation: card.imageSettings.rotation || 0,
@@ -1048,6 +1054,10 @@ class PhotoLayoutEditor {
     const history = [];
     let historyIndex = -1;
 
+    preview.width = previewWidth
+    preview.height = previewHeight
+
+
     preview.innerHTML = "";
     const previewContainer = document.createElement("div");
     previewContainer.className = "image-container";
@@ -1061,9 +1071,18 @@ class PhotoLayoutEditor {
     imgClone.style.position = "absolute";
     imgClone.style.left = "50%";
     imgClone.style.top = "50%";
-    imgClone.style.objectFit = editState.objectFit;
-    imgClone.style.width = editState.width;
-    imgClone.style.height = editState.height;
+    
+    // Set initial image dimensions based on container and image aspect ratios
+    const containerAspect = card.size.width / card.size.height;
+    const imageAspect = card.image.originalWidth / card.image.originalHeight;
+    
+    if (containerAspect > imageAspect) {
+        imgClone.style.width = "auto";
+        imgClone.style.height = "100%";
+    } else {
+        imgClone.style.width = "100%";
+        imgClone.style.height = "auto";
+    }
 
     previewContainer.appendChild(imgClone);
     preview.appendChild(previewContainer);
