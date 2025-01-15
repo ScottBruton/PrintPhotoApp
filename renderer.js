@@ -977,36 +977,26 @@ class PhotoLayoutEditor {
     }
   }
 
-  showPrintPreview() {
-    console.log("showPrintPreview");
-    // Get the HTML content from the layout renderer
-    const previewContent = this.layoutRenderer.generateHTML();
-
-    // Create a temporary container to parse the HTML
-    const tempContainer = document.createElement("div");
-    tempContainer.innerHTML = previewContent;
-
-    // Get all pages from the container
-    const pages = Array.from(tempContainer.querySelectorAll(".a4-page"));
-
+  async showPrintPreview() {
+    console.log("=== Starting Print Preview ===");
+    
     // Create a new PrintManager instance if it doesn't exist
     if (!this.printManager) {
+      console.log("Creating new PrintManager instance");
       this.printManager = new PrintManager();
+    } else {
+      console.log("Using existing PrintManager instance");
     }
 
-    // Create and show the print dialog
-    this.printManager.createPrintDialog();
-
-    // Set the pages in the print preview
-    if (this.printManager.printPreview) {
-      this.printManager.printPreview.setPages(pages);
-
-      // Force a reflow to ensure the dialog is visible
-      this.printManager.dialog.offsetHeight;
-
-      // Make sure dialog is visible
-      this.printManager.dialog.style.display = "flex";
+    try {
+      console.log("Attempting to show print dialog");
+      // Create and show the print dialog
+      const result = await this.printManager.showPrintDialog();
+      console.log("Print dialog result:", result);
+    } catch (error) {
+      console.error("Error showing print dialog:", error);
     }
+    console.log("=== Print Preview Complete ===");
   }
 
   // Enhanced image handling with editing features

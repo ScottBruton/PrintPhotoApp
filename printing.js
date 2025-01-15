@@ -44,14 +44,19 @@ class PrintManager {
 
   async refreshPrinters() {
     try {
+      console.log("=== Refreshing Printers ===");
       // Only proceed if dialog exists
-      if (!this.dialog) return;
+      if (!this.dialog) {
+        console.log("Dialog not found, skipping printer refresh");
+        return;
+      }
 
       // Show loading indicator
       const refreshButton = this.dialog.querySelector("#refreshPrinters");
       const originalContent = refreshButton.innerHTML;
       refreshButton.innerHTML = "🔄 Scanning...";
       refreshButton.disabled = true;
+      console.log("Started printer scan");
 
       // Get printers from Windows API
       const result = await window.electron.winPrint.getPrinters();
@@ -63,6 +68,7 @@ class PrintManager {
 
         // Update the dropdown
         this.updatePrinterDropdown();
+        console.log(`Found ${this.printerList.length} printers`);
 
         // Show success message
         this.showToast(`Found ${this.printerList.length} printers`);
@@ -74,6 +80,7 @@ class PrintManager {
       // Restore refresh button
       refreshButton.innerHTML = originalContent;
       refreshButton.disabled = false;
+      console.log("=== Printer Refresh Complete ===");
     } catch (error) {
       console.error("Error refreshing printers:", error);
       this.showToast("Error refreshing printer list");
@@ -489,7 +496,9 @@ class PrintManager {
   }
 
   async showPrintDialog(contentToprint) {
+    console.log("=== Print Dialog Opening ===");
     if (!this.dialog) {
+      console.log("Creating new print dialog");
       this.createPrintDialog();
       // Initialize printer monitoring after dialog is created
       this.initializePrinterMonitoring();
@@ -497,10 +506,12 @@ class PrintManager {
 
     // Initialize print preview if not already done
     if (!this.printPreview) {
+      console.log("Initializing print preview");
       this.printPreview = new PrintPreview();
     }
 
     // Show the dialog
+    console.log("Showing dialog");
     this.dialog.style.display = "flex";
 
     // Get the renderer instance
@@ -543,8 +554,12 @@ class PrintManager {
     this.printPreview.setPages(pages);
     console.log("Print preview updated with", pages.length, "pages");
 
-    // Get available printers
+    // Wait for UI to be fully rendered before refreshing printers
+    console.log("Waiting for UI to render before refreshing printers...");
+    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log("Starting printer refresh");
     await this.refreshPrinters();
+    console.log("=== Print Dialog Setup Complete ===");
 
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
