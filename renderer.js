@@ -624,6 +624,13 @@ class PhotoLayoutEditor {
   updateCardDisplay(placeholder, imageData) {
     placeholder.innerHTML = "";
 
+    // Get the current card settings
+    const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+    const cardId = placeholder.id;
+    const card = this.sessionManager.getCard(pageNumber, cardId);
+    
+    if (!card) return;
+
     // Create image container
     const container = document.createElement("div");
     container.className = "image-container";
@@ -638,21 +645,48 @@ class PhotoLayoutEditor {
     img.style.position = "absolute";
     img.style.left = "50%";
     img.style.top = "50%";
-    img.style.transform = "translate(-50%, -50%)";
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.objectFit = "contain";
+
+    // Use the card's image settings if they exist, otherwise use defaults
+    const settings = card.imageSettings || {
+      fit: "contain",
+      objectFit: "contain",
+      width: "100%",
+      height: "100%",
+      rotation: 0,
+      zoom: 100,
+      translateX: 0,
+      translateY: 0
+    };
+
+    // Apply image settings
+    img.style.objectFit = settings.objectFit;
+    img.style.width = settings.width;
+    img.style.height = settings.height;
+
+    // Build transform
+    const transform = [];
+    transform.push("translate(-50%, -50%)"); // Center the image
+
+    if (settings.translateX || settings.translateY) {
+      transform.push(`translate(${settings.translateX}px, ${settings.translateY}px)`);
+    }
+
+    if (settings.rotation) {
+      transform.push(`rotate(${settings.rotation}deg)`);
+    }
+
+    if (settings.zoom) {
+      transform.push(`scale(${settings.zoom / 100})`);
+    }
+
+    img.style.transform = transform.join(" ");
 
     // Add image to container
     container.appendChild(img);
     placeholder.appendChild(container);
 
     // Add edit overlay with cardId
-    const cardId = placeholder.id;
     this.addEditOverlay(placeholder, cardId);
-
-    // Update layout state after display update
-    this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
   }
 
   setupDragAndDrop() {
@@ -754,6 +788,17 @@ class PhotoLayoutEditor {
         const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
         const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
 
+        // Get the latest cards with their settings from the session manager
+        const latestCards = this.sessionManager.getPageCards(newPage + 1);
+        console.log('During page navigation - Latest cards:', {
+          pageNumber: newPage + 1,
+          latestCards,
+          currentPageCards: currentPage.cards
+        });
+        if (latestCards) {
+          currentPage.cards = latestCards;
+        }
+
         // Recreate each card and restore its image if it exists
         currentPage.cards.forEach((card) => {
           const placeholder = document.createElement("div");
@@ -773,58 +818,7 @@ class PhotoLayoutEditor {
 
           // Restore image if it exists
           if (card.image) {
-            const container = document.createElement("div");
-            container.className = "image-container";
-
-            const img = document.createElement("img");
-            img.src = card.image.src;
-
-            // Set initial image styles for proper fitting
-            const containerAspect = card.size.width / card.size.height;
-            const imageAspect = card.image.originalWidth / card.image.originalHeight;
-
-            if (containerAspect > imageAspect) {
-              img.style.width = "auto";
-              img.style.height = "100%";
-            } else {
-              img.style.width = "100%";
-              img.style.height = "auto";
-            }
-
-            // Position image initially at center
-            img.style.position = "absolute";
-            img.style.left = "50%";
-            img.style.top = "50%";
-
-            // Apply stored image settings
-            if (card.imageSettings) {
-              const transform = [];
-              transform.push("translate(-50%, -50%)"); // Center the image
-
-              if (card.imageSettings.translateX || card.imageSettings.translateY) {
-                transform.push(
-                  `translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`
-                );
-              }
-
-              if (card.imageSettings.rotation) {
-                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
-              }
-
-              if (card.imageSettings.zoom) {
-                transform.push(`scale(${card.imageSettings.zoom / 100})`);
-              }
-
-              img.style.transform = transform.join(" ");
-            } else {
-              img.style.transform = "translate(-50%, -50%)";
-            }
-
-            container.appendChild(img);
-            placeholder.appendChild(container);
-
-            // Add edit and delete buttons overlay
-            this.addEditOverlay(placeholder, card.id);
+            this.updateCardDisplay(placeholder, card.image);
           }
         });
 
@@ -1130,24 +1124,32 @@ class PhotoLayoutEditor {
       editState.zoom = parseInt(zoomInput.value);
       updatePreview();
     };
-    zoomInput.onchange = () => saveState();
+    zoomInput.onchange = () => {
+      editState.zoom = parseInt(zoomInput.value);
+      saveState();
+    };
 
     // Rotation handler
     rotationInput.oninput = () => {
       editState.rotation = parseInt(rotationInput.value);
       updatePreview();
     };
-    rotationInput.onchange = () => saveState();
+    rotationInput.onchange = () => {
+      editState.rotation = parseInt(rotationInput.value);
+      saveState();
+    };
 
     // Fit Image button
     document.getElementById("fitImage").onclick = () => {
-      editState.zoom = 100;
-      editState.translateX = 0;
-      editState.translateY = 0;
-      editState.fit = "contain";
-      editState.objectFit = "contain";
-      editState.width = "100%";
-      editState.height = "100%";
+      Object.assign(editState, {
+        zoom: 100,
+        translateX: 0,
+        translateY: 0,
+        fit: "contain",
+        objectFit: "contain",
+        width: "100%",
+        height: "100%"
+      });
 
       zoomInput.value = editState.zoom;
       rotationInput.value = editState.rotation;
@@ -1158,13 +1160,15 @@ class PhotoLayoutEditor {
 
     // Fill Image button
     document.getElementById("fillImage").onclick = () => {
-      editState.zoom = 100;
-      editState.translateX = 0;
-      editState.translateY = 0;
-      editState.fit = "fill";
-      editState.objectFit = "fill";
-      editState.width = "100%";
-      editState.height = "100%";
+      Object.assign(editState, {
+        zoom: 100,
+        translateX: 0,
+        translateY: 0,
+        fit: "fill",
+        objectFit: "fill",
+        width: "100%",
+        height: "100%"
+      });
 
       zoomInput.value = editState.zoom;
       rotationInput.value = editState.rotation;
@@ -1229,7 +1233,7 @@ class PhotoLayoutEditor {
 
       if (editState.translateX || editState.translateY) {
         transform.push(
-          `translate(${editState.translateX}px, ${editState.translateY}px)`
+          `translate(${editState.translateX}px, ${editState.translateY}px}`
         );
       }
 
@@ -1247,9 +1251,23 @@ class PhotoLayoutEditor {
       img.style.width = editState.width;
       img.style.height = editState.height;
 
-      // Save final state to session
-      this.sessionManager.updateCardImageSettings(pageNumber, cardId, {
+      // Create complete image settings object with latest editState
+      const completeImageSettings = {
         ...editState,
+        containerWidth: card.size.width,
+        containerHeight: card.size.height,
+        originalWidth: card.image.originalWidth,
+        originalHeight: card.image.originalHeight
+      };
+
+      // Save final state to session
+      this.sessionManager.updateCardImageSettings(pageNumber, cardId, completeImageSettings);
+      console.log('After editing image settings - Card state:', {
+        pageNumber,
+        cardId,
+        card: this.sessionManager.getCard(pageNumber, cardId),
+        editState: completeImageSettings,
+        originalEditState: editState
       });
       this.sessionManager.saveState("Edit Image");
 
@@ -1417,9 +1435,37 @@ class PhotoLayoutEditor {
           originalHeight: img.height,
         };
 
-        // Update session and layout state
+        // Get the card to access its size
         const pageNumber = this.sessionManager.sessionData.currentPage + 1;
+        const card = this.sessionManager.getCard(pageNumber, cardId);
+        
+        // Create complete initial image settings
+        const initialImageSettings = {
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          fit: "contain",
+          rotation: 0,
+          zoom: 100,
+          translateX: 0,
+          translateY: 0,
+          containerWidth: card.size.width,
+          containerHeight: card.size.height,
+          originalWidth: img.width,
+          originalHeight: img.height
+        };
+
+        // Update session and layout state
         this.sessionManager.setCardImage(pageNumber, cardId, imageData);
+        this.sessionManager.updateCardImageSettings(pageNumber, cardId, initialImageSettings);
+        
+        console.log('After adding image - Card state:', {
+          pageNumber,
+          cardId,
+          card: this.sessionManager.getCard(pageNumber, cardId),
+          imageSettings: initialImageSettings
+        });
+        
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
 
         // Update display
