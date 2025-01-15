@@ -30,8 +30,22 @@ class PrintPreview {
             <div id="previewContent" class="preview-content"></div>
         `;
 
+    // Add preview container styling
+    const previewContent = previewElement.querySelector(".preview-content");
+    Object.assign(previewContent.style, {
+      width: "100%",
+      height: "calc(100% - 50px)", // Subtract toolbar height
+      overflow: "auto",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "flex-start",
+      padding: "20px",
+      boxSizing: "border-box",
+      background: "#f0f0f0"
+    });
+
     this.element = previewElement;
-    this.previewContent = previewElement.querySelector("#previewContent");
+    this.previewContent = previewContent;
     this.setupEventListeners();
   }
 
@@ -160,6 +174,17 @@ class PrintPreview {
       // Add preview-specific styling
       pageClone.classList.add("preview-page");
       pageClone.style.display = "block";
+
+      // Ensure A4 dimensions and styling
+      Object.assign(pageClone.style, {
+        width: "210mm",
+        height: "297mm",
+        margin: "0 auto",
+        background: "white",
+        position: "relative",
+        transformOrigin: "top left",
+        boxSizing: "border-box"
+      });
 
       this.previewContent.appendChild(pageClone);
 

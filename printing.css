@@ -192,10 +192,10 @@
   background: white;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   transform-origin: center;
-  max-width: 95%;
-  max-height: 95%;
+  width: 210mm;
+  height: 297mm;
   margin: auto;
-  transform: scale(1);
+  transform: scale(0.8);
 }
 
 /* Buttons and controls */
