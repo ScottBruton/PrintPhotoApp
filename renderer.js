@@ -860,29 +860,77 @@ class PhotoLayoutEditor {
   }
 
   async saveLayout() {
-    const layoutData = {
-      pages: this.sessionManager.sessionData.pages,
-      currentPage: this.sessionManager.sessionData.currentPage,
-    };
+    try {
+      // Prepare the complete layout data
+      const layoutData = {
+        version: "1.0", // For future compatibility
+        timestamp: new Date().toISOString(),
+        sessionData: {
+          pages: this.sessionManager.sessionData.pages.map(page => ({
+            ...page,
+            cards: page.cards.map(card => ({
+              ...card,
+              // Ensure we save all necessary card data
+              position: { ...card.position },
+              size: { ...card.size },
+              image: card.image ? {
+                ...card.image,
+                // Keep the image data
+                src: card.image.src
+              } : null,
+              imageSettings: card.imageSettings ? {
+                ...card.imageSettings
+              } : null
+            }))
+          })),
+          currentPage: this.sessionManager.sessionData.currentPage
+        },
+        // Save history for undo/redo functionality
+        history: this.sessionManager.history,
+        currentHistoryIndex: this.sessionManager.currentHistoryIndex
+      };
 
-    const result = await window.electron.invoke("save-layout", layoutData);
-    if (result) {
-      this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
-      alert("Layout saved successfully!");
+      const result = await window.electron.invoke("save-layout", layoutData);
+      if (result) {
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+        alert("Layout saved successfully!");
+      } else {
+        throw new Error("Failed to save layout");
+      }
+    } catch (error) {
+      console.error("Error saving layout:", error);
+      alert("Failed to save layout. Please try again.");
     }
   }
 
   async loadLayout() {
-    const layoutData = await window.electron.invoke("load-layout");
-    if (layoutData) {
-      this.sessionManager.loadSessionState(layoutData);
-      this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+    try {
+      const layoutData = await window.electron.invoke("load-layout");
+      if (layoutData) {
+        // Validate version compatibility if needed
+        if (layoutData.version && layoutData.version !== "1.0") {
+          console.warn("Loading layout from different version:", layoutData.version);
+        }
 
-      // Update the page indicator
-      this.updatePageIndicator();
+        // Restore session state
+        this.sessionManager.loadSessionState(layoutData.sessionData);
+        
+        // Restore history if available
+        if (layoutData.history) {
+          this.sessionManager.history = layoutData.history;
+          this.sessionManager.currentHistoryIndex = layoutData.currentHistoryIndex;
+        }
 
-      // Refresh the current page view
-      this.navigatePage(0);
+        // Update the UI
+        this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+        this.updatePageIndicator();
+        this.navigatePage(0); // Refresh current page view
+        
+        alert("Layout loaded successfully!");
+      }
+    } catch (error) {
+      console.error("Error loading layout:", error);
+      alert("Failed to load layout. The file might be corrupted or in an incompatible format.");
     }
   }
 
