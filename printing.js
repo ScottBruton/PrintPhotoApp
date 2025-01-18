@@ -385,12 +385,22 @@ class PrintManager {
       });
 
       // Handle specific error cases
-      if (error.name === 'TypeError' && error.message.includes('Cannot read properties of undefined')) {
-        this.showToast('Print failed: Unable to get response from print service. Please check printer connection and try again.');
-      } else if (error.name === 'NetworkError') {
-        this.showToast('Print failed: Network connection error. Please check your connection and try again.');
+      if (error.message.includes('ECONNREFUSED')) {
+
+        this.showToast('Cannot connect to printer. Please check network connection and printer status.');
+
+      } else if (error.message.includes('Access denied')) {
+
+        this.showToast('Access to printer denied. Please check printer permissions and network access.');
+
+      } else if (error.name === 'TypeError' && error.message.includes('Cannot read properties of undefined')) {
+
+        this.showToast('Print system not responding. Please check if:\n- Printer software is installed\n- Print service is running\n- You have necessary permissions');
+
       } else {
-        this.showToast(`Print failed: ${error.message || 'Unknown error occurred'}`);
+
+        this.showToast(`Print failed: ${error.message || 'Could not send print job to printer'}`);
+
       }
     }
   }
