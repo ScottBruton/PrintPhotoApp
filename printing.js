@@ -273,225 +273,125 @@ class PrintManager {
         .value,
     };
 
-    // Validate print job
-    const validation = await this.validatePrintJob(settings);
-    if (!validation.isValid) {
-      alert("Print job validation failed:\n" + validation.errors.join("\n"));
-      return;
-    }
-
-    // Close the print dialog before sending to print
-    this.dialog.style.display = "none";
-
     try {
-      // Create temporary file for printing
-      const tempPath = await this.createTempFile(
-        this.printPreview.previewContent.innerHTML
-      );
-
-      // Send to print using Windows printing
-      const result = await window.electron.winPrint.printFile(
-        tempPath,
-        settings.printer
-      );
-
-      if (result.success) {
-        this.showToast(`Successfully sent to printer: ${settings.printer}`);
-        this.closeDialog(true);
-      } else {
-        throw new Error(result.error || "Print failed");
-      }
-    } catch (error) {
-      console.error("Print error:", error);
-      alert(`Print failed: ${error.message}`);
-      this.closeDialog(false);
-    }
-  }
-
-  async createTempFile(content) {
-    try {
-      // Get renderer instance
-      const rendererInstance = window.rendererInstance;
-      if (!rendererInstance || !rendererInstance.sessionManager) {
-        throw new Error("Renderer instance not found");
+      // Validate settings before proceeding
+      const validation = await this.validatePrintJob(settings);
+      if (!validation.isValid) {
+        this.showToast(validation.errors.join('\n'));
+        return;
       }
 
-      // Store current page to restore later
-      const currentPageIndex =
-        rendererInstance.sessionManager.sessionData.currentPage;
+      // Get the HTML content from layoutRenderer
+      const layoutRenderer = window.rendererInstance.layoutRenderer;
+      const htmlContent = layoutRenderer.generateHTML();
 
-      // Create PDF document
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({
+      // Save HTML to a temporary file and get the file path
+      const tempFilePath = await window.electron.invoke('save-temp-html', htmlContent);
+
+      try {
+      const pdf = new window.jspdf.jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4",
-        hotfixes: ["px_scaling"],
       });
 
-      // Process each page
-      for (
-        let i = 0;
-        i < rendererInstance.sessionManager.sessionData.pages.length;
-        i++
-      ) {
-        // Navigate to the page to render it
-        rendererInstance.sessionManager.sessionData.currentPage = i;
-        rendererInstance.navigatePage(0);
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      document.body.appendChild(tempContainer);
 
-        // Wait for images to load
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      tempContainer.innerHTML = htmlContent;
 
-        // Hide empty placeholders
-        const emptyPlaceholders = document.querySelectorAll(
+      for (let i = 0; i < window.rendererInstance.sessionManager.sessionData.pages.length; i++) {
+        // Get the page element
+        const pageElement = tempContainer.querySelector(
+          `[data-page="${i + 1}"]`
+        );
+        if (!pageElement) continue;
+
+        // Show current page and hide others
+        pageElement.style.display = "block";
+
+        // Hide empty placeholders before capture
+        const emptyPlaceholders = pageElement.querySelectorAll(
           ".photo-placeholder:not(:has(img))"
         );
         emptyPlaceholders.forEach((placeholder) => {
           placeholder.style.display = "none";
         });
 
-        // Remove dotted borders
-        const placeholders = document.querySelectorAll(".photo-placeholder");
+        // Remove dotted borders and backgrounds for capture
+        const placeholders = pageElement.querySelectorAll(".photo-placeholder");
         placeholders.forEach((placeholder) => {
           placeholder.style.border = "none";
           placeholder.style.backgroundColor = "transparent";
         });
 
-        // Hide edit overlays
-        const editOverlays = document.querySelectorAll(".edit-overlay");
+        // Hide edit overlays and delete buttons for capture
+        const editOverlays = pageElement.querySelectorAll(
+          ".edit-overlay, .page-delete-btn"
+        );
         editOverlays.forEach((overlay) => {
           overlay.style.display = "none";
         });
 
-        // Ensure images maintain their transforms
-        const images = document.querySelectorAll(".photo-placeholder img");
-        images.forEach((img) => {
-          const container = img.closest(".image-container");
-          if (container) {
-            const placeholder = container.closest(".photo-placeholder");
-            const cardId = placeholder.id;
-            const card = rendererInstance.sessionManager.getCard(i + 1, cardId);
+        // Wait for images to load
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-            if (card && card.imageSettings) {
-              const transform = [];
-              transform.push("translate(-50%, -50%)");
-
-              if (
-                card.imageSettings.translateX ||
-                card.imageSettings.translateY
-              ) {
-                transform.push(
-                  `translate(${card.imageSettings.translateX}px, ${card.imageSettings.translateY}px)`
-                );
-              }
-
-              if (card.imageSettings.rotation) {
-                transform.push(`rotate(${card.imageSettings.rotation}deg)`);
-              }
-
-              if (card.imageSettings.zoom) {
-                transform.push(`scale(${card.imageSettings.zoom / 100})`);
-              }
-
-              img.style.transform = transform.join(" ");
-              img.style.position = "absolute";
-              img.style.left = "50%";
-              img.style.top = "50%";
-
-              // Set size based on aspect ratio
-              const containerAspect = card.size.width / card.size.height;
-              const imageAspect =
-                card.image.originalWidth / card.image.originalHeight;
-
-              if (containerAspect > imageAspect) {
-                img.style.width = "auto";
-                img.style.height = "100%";
-              } else {
-                img.style.width = "100%";
-                img.style.height = "auto";
-              }
-            }
-          }
-        });
-
-        // Capture the page with high resolution
-        const pageElement = document.getElementById("a4Page");
+        // Capture the page
         const canvas = await html2canvas(pageElement, {
-          scale: 4, // Higher resolution
+          scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: "#ffffff",
-          width: pageElement.offsetWidth,
-          height: pageElement.offsetHeight,
-          logging: false,
-          onclone: (clonedDoc) => {
-            // Apply transforms to cloned images
-            const clonedImages = clonedDoc.querySelectorAll(
-              ".photo-placeholder img"
-            );
-            clonedImages.forEach((img) => {
-              const originalImg = document.querySelector(
-                `img[src="${img.src}"]`
-              );
-              if (originalImg) {
-                img.style.transform = originalImg.style.transform;
-                img.style.width = originalImg.style.width;
-                img.style.height = originalImg.style.height;
-                img.style.position = originalImg.style.position;
-                img.style.left = originalImg.style.left;
-                img.style.top = originalImg.style.top;
-              }
-            });
-          },
+          backgroundColor: null,
         });
 
-        // Add new page if not first page
+        // Add page to PDF (except first page)
         if (i > 0) {
           pdf.addPage();
         }
 
-        // Add image to PDF (full A4 size)
-        pdf.addImage(
-          canvas.toDataURL("image/jpeg", 1.0),
-          "JPEG",
-          0,
-          0,
-          210,
-          297
-        );
-
-        // Restore visibility of elements
-        emptyPlaceholders.forEach((placeholder) => {
-          placeholder.style.display = "block";
-        });
-        placeholders.forEach((placeholder) => {
-          placeholder.style.border = "2px dashed #dee2e6";
-          placeholder.style.backgroundColor = "#f8f9fa";
-        });
-        editOverlays.forEach((overlay) => {
-          overlay.style.display = "block";
-        });
+        // Add the image to the PDF
+        const imgData = canvas.toDataURL("image/png");
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       }
 
-      // Restore original page
-      rendererInstance.sessionManager.sessionData.currentPage =
-        currentPageIndex;
-      rendererInstance.navigatePage(0);
+      // Clean up the temporary container
+      document.body.removeChild(tempContainer);
 
-      // Save to temp file
-      const timestamp = new Date().getTime();
-      const tempPath = await window.electron.winPrint.getTempFile(
-        `print_${timestamp}.pdf`
-      );
-      await window.electron.savePDF({
-        path: tempPath,
-        data: pdf.output("arraybuffer"),
+      // Save the PDF
+      pdf.save("photo-layout.pdf");
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    }
+      // Send to print handler
+      const result = await window.electron.invoke('print', tempFilePath, settings);
+
+      if (result.success) {
+        this.showToast('Print job sent successfully');
+        this.closeDialog(true);
+      } else {
+        this.showToast(`Print failed: ${result.error}`);
+      }
+    } catch (error) {
+      // Log detailed error information
+      console.error('Print error:', {
+        error,
+        message: error.message,
+        stack: error.stack,
+        name: error.name
       });
 
-      return tempPath;
-    } catch (error) {
-      console.error("Error creating temp file:", error);
-      throw new Error(`Failed to create temporary file: ${error.message}`);
+      // Handle specific error cases
+      if (error.name === 'TypeError' && error.message.includes('Cannot read properties of undefined')) {
+        this.showToast('Print failed: Unable to get response from print service. Please check printer connection and try again.');
+      } else if (error.name === 'NetworkError') {
+        this.showToast('Print failed: Network connection error. Please check your connection and try again.');
+      } else {
+        this.showToast(`Print failed: ${error.message || 'Unknown error occurred'}`);
+      }
     }
   }
 

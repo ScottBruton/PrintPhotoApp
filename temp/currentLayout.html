@@ -1,95 +1,19 @@
 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Current Layout</title>
-    <style>
-        @page {
-            size: A4;
-            margin: 0;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            background: #f0f0f0;
-        }
-        .a4-page {
-            width: 210mm;
-            height: 297mm;
-            position: relative;
-            page-break-after: always;
-            margin: 0 auto;
-            padding: 0;
-            background: white;
-            display: block !important;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .photo-placeholder {
-            position: absolute;
-            box-sizing: border-box;
-            background: transparent;
-            border: none;
-        }
-        .photo-placeholder .image-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        .photo-placeholder img {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-        }
-        .edit-overlay, .page-delete-btn {
-            display: none !important;
-        }
-        @media print {
-            body {
-                width: 210mm;
-                height: 297mm;
-                background: none;
-            }
-            .a4-page {
-                box-shadow: none;
-                margin: 0;
-                padding: 0;
-            }
-            .photo-placeholder {
-                border: none;
-            }
-        }
-    </style>
-</head>
-<body>
-    
             <div class="a4-page" data-page="1" style="display: block">
         
             <button class="page-delete-btn" onclick="window.rendererInstance.deletePage(1)">×</button>
         
             <div class="photo-placeholder" id="card-1-0" 
-                style="width: 51mm; height: 51mm; left: 5mm; top: 5mm; position: absolute;">
-        </div>
+                style="width: 127mm; height: 89mm; left: 5mm; top: 5mm; position: absolute;">
+        
+                <div class="image-container" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAYAAAB1PADUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAMASURBVHhe7dIhDgNBEAPB+/+nL2ZxpEXrwCrJYAb3E6/ZH3d8mt3u+DS73feAG91QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1QJig23VAmKDbdUCYoNt1Q9nOYrTs+zW53fJpd7Hk/2b2s5X3on4kAAAAASUVORK5CYII=" 
+                        style="width: 100%; height: 100%; object-fit: fill; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1);">
+                </div>
+            </div>
             <div class="photo-placeholder" id="card-1-1" 
-                style="width: 51mm; height: 51mm; left: 66mm; top: 5mm; position: absolute;">
+                style="width: 127mm; height: 89mm; left: 5mm; top: 104mm; position: absolute;">
         </div>
             <div class="photo-placeholder" id="card-1-2" 
-                style="width: 51mm; height: 51mm; left: 127mm; top: 5mm; position: absolute;">
-        </div>
-            <div class="photo-placeholder" id="card-1-3" 
-                style="width: 51mm; height: 51mm; left: 5mm; top: 66mm; position: absolute;">
-        </div>
-            <div class="photo-placeholder" id="card-1-4" 
-                style="width: 51mm; height: 51mm; left: 66mm; top: 66mm; position: absolute;">
-        </div>
-            <div class="photo-placeholder" id="card-1-5" 
-                style="width: 51mm; height: 51mm; left: 127mm; top: 66mm; position: absolute;">
-        </div>
-            <div class="photo-placeholder" id="card-1-6" 
-                style="width: 51mm; height: 51mm; left: 5mm; top: 127mm; position: absolute;">
-        </div>
-            <div class="photo-placeholder" id="card-1-7" 
-                style="width: 51mm; height: 51mm; left: 66mm; top: 127mm; position: absolute;">
+                style="width: 127mm; height: 89mm; left: 5mm; top: 203mm; position: absolute;">
         </div></div>
-</body>
-</html>
