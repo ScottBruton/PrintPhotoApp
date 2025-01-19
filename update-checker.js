@@ -106,6 +106,7 @@ class UpdateChecker {
           https
             .get(response.headers.location, handleResponse)
             .on("error", (err) => {
+              file.end();
               fs.unlink(tempPath, () => {});
               console.error("Redirect error:", err);
               reject(err);
@@ -138,18 +139,20 @@ class UpdateChecker {
         });
 
         file.on("finish", () => {
-          file.close();
-          // Verify file exists and has content
-          if (fs.existsSync(tempPath) && fs.statSync(tempPath).size > 0) {
-            console.log("Download completed successfully");
-            resolve(tempPath);
-          } else {
-            reject(new Error("Downloaded file is empty or missing"));
-          }
+          file.end();
+          setTimeout(() => {
+            if (fs.existsSync(tempPath) && fs.statSync(tempPath).size > 0) {
+              console.log("Download completed successfully");
+              resolve(tempPath);
+            } else {
+              reject(new Error("Downloaded file is empty or missing"));
+            }
+          }, 1000);
         });
       };
 
       https.get(url, handleResponse).on("error", (err) => {
+        file.end();
         fs.unlink(tempPath, () => {});
         console.error("Download error:", err);
         reject(err);
@@ -159,39 +162,36 @@ class UpdateChecker {
 
   async installUpdate(installerPath) {
     return new Promise((resolve, reject) => {
-      // Check if file exists
-      if (!fs.existsSync(installerPath)) {
-        reject(new Error(`Installer not found at path: ${installerPath}`));
-        return;
-      }
-
-      try {
-        // On Windows, we need to use the full path to the installer
-        const fullPath = path.resolve(installerPath);
-        console.log("Installing from path:", fullPath);
-
-        // Use exec instead of spawn
-        // Run the installer with start command on Windows
-        const command = `start "" "${fullPath}" /SILENT /NORESTART`;
-
-        exec(command, (error, stdout, stderr) => {
-          if (error) {
-            console.error("Exec error:", error);
-            console.error("Stderr:", stderr);
-            reject(error);
+      setTimeout(() => {
+        try {
+          if (!fs.existsSync(installerPath)) {
+            reject(new Error(`Installer not found at path: ${installerPath}`));
             return;
           }
 
-          console.log("Installer started successfully");
-          console.log("Stdout:", stdout);
+          const fullPath = path.resolve(installerPath);
+          console.log("Installing from path:", fullPath);
 
-          // Resolve immediately since the installer is running
-          resolve();
-        });
-      } catch (error) {
-        console.error("Installation error:", error);
-        reject(error);
-      }
+          const command = `"${fullPath}" /SILENT /NORESTART`;
+
+          exec(command, (error, stdout, stderr) => {
+            if (error) {
+              console.error("Exec error:", error);
+              console.error("Stderr:", stderr);
+              reject(error);
+              return;
+            }
+
+            console.log("Installer started successfully");
+            console.log("Stdout:", stdout);
+
+            resolve();
+          });
+        } catch (error) {
+          console.error("Installation error:", error);
+          reject(error);
+        }
+      }, 1500);
     });
   }
 }
