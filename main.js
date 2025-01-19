@@ -30,6 +30,8 @@ let mainWindow = null;
 let updateWindow = null;
 
 function createWindow() {
+  console.log("Creating main window...");
+  // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -43,14 +45,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile("index.html");
-  mainWindow.maximize();
-  mainWindow.show();
-
+  
   // Wait for window to be ready
   mainWindow.webContents.on("did-finish-load", () => {
+    console.log("Main window loaded and ready");
     mainWindow.maximize();
     mainWindow.show();
-    console.log("Window loaded and ready");
   });
 
   mainWindow.on("closed", () => {
@@ -59,6 +59,7 @@ function createWindow() {
 }
 
 function createUpdateWindow() {
+  console.log("Creating update window...");
   updateWindow = new BrowserWindow({
     width: 400,
     height: 200,
@@ -66,7 +67,7 @@ function createUpdateWindow() {
     resizable: false,
     alwaysOnTop: true,
     modal: true,
-    parent: mainWindow,
+    show: false,
     center: true,
     webPreferences: {
       nodeIntegration: false,
@@ -76,6 +77,20 @@ function createUpdateWindow() {
   });
 
   updateWindow.loadFile("update.html");
+  
+  updateWindow.once('ready-to-show', () => {
+    console.log("Update window ready to show");
+    updateWindow.show();
+  });
+
+  updateWindow.webContents.on('did-finish-load', () => {
+    console.log("Update window content loaded");
+  });
+
+  updateWindow.on('closed', () => {
+    console.log("Update window closed");
+    updateWindow = null;
+  });
 }
 
 // Handle save layout
@@ -382,53 +397,31 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   }
 });
 
-// Add these IPC handlers
-ipcMain.handle("check-for-updates", async () => {
-  try {
-    const checker = new UpdateChecker();
-    const result = await checker.checkForUpdates();
-    return result;
-  } catch (error) {
-    return { error: error.message };
-  }
-});
-
-ipcMain.handle("install-update", async () => {
-  try {
-    const checker = new UpdateChecker();
-    await checker.pullUpdates();
-    return { success: true };
-  } catch (error) {
-    return { error: error.message };
-  }
-});
-
-ipcMain.handle("restart-app", () => {
-  app.relaunch();
-  app.exit();
-});
-
-// Modify the app.whenReady() handler
-app.whenReady().then(() => {
-  // Create main window first
-  createWindow();
-
-  // Then create update window
+// App startup
+app.whenReady().then(async () => {
+  console.log("App ready");
+  
+  // Create update window first and wait for it to be ready
   createUpdateWindow();
-
-  // Show update window when ready
-  updateWindow.once("ready-to-show", () => {
-    updateWindow.show();
+  await new Promise(resolve => {
+    updateWindow.once('ready-to-show', () => {
+      console.log("Update window ready");
+      updateWindow.show();
+      resolve();
+    });
   });
+  
+  // Create main window after update window is ready
+  createWindow();
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-app.on("activate", () => {
+app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
@@ -487,4 +480,50 @@ ipcMain.handle("save-print-pdf", async (event, { path: filePath, data }) => {
         console.error("Error saving PDF:", error);
         return { success: false, error: error.message };
     }
+});
+
+// Keep the detailed handlers at the end
+const updateChecker = new UpdateChecker();
+
+// Add IPC handlers for updates
+ipcMain.handle('check-for-updates', async () => {
+  console.log("Received check-for-updates request");
+  try {
+    const result = await updateChecker.checkForUpdates();
+    console.log("Update check result:", result);
+    return result;
+  } catch (error) {
+    console.error("Update check error:", error);
+    return { error: error.message };
+  }
+});
+
+ipcMain.handle('download-update', async (event, downloadUrl) => {
+  console.log("Received download-update request for URL:", downloadUrl);
+  try {
+    return await updateChecker.downloadUpdate(downloadUrl, (progress) => {
+      console.log("Download progress:", progress);
+      event.sender.send('download-progress', progress);
+    });
+  } catch (error) {
+    console.error("Download error:", error);
+    throw error;
+  }
+});
+
+ipcMain.handle('install-update', async (event, installerPath) => {
+  console.log("Received install-update request for path:", installerPath);
+  try {
+    await updateChecker.installUpdate(installerPath);
+    return true;
+  } catch (error) {
+    console.error("Install error:", error);
+    throw error;
+  }
+});
+
+ipcMain.handle('restart-app', () => {
+  console.log("Restarting app...");
+  app.relaunch();
+  app.exit();
 });

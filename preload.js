@@ -1,9 +1,14 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Add console log to verify preload script is running
+console.log("Preload script running");
+
 contextBridge.exposeInMainWorld("electron", {
   invoke: (channel, data) => {
+    console.log("IPC invoke called:", channel, data);
     const validChannels = [
       "check-for-updates",
+      "download-update",
       "install-update",
       "restart-app",
       "create-main-window",
@@ -13,6 +18,13 @@ contextBridge.exposeInMainWorld("electron", {
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
+    }
+  },
+  on: (channel, callback) => {
+    console.log("IPC on called:", channel);
+    const validChannels = ["download-progress"];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, (event, ...args) => callback(...args));
     }
   },
   getPrinters: () => ipcRenderer.invoke("get-printers"),
