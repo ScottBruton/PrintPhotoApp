@@ -331,11 +331,7 @@ class PhotoLayoutEditor {
 
     // Handle custom size validation
     customWidthInput.addEventListener("input", (e) => {
-      // Allow only numbers and backspace
-      let value = e.target.value.replace(/[^\d]/g, "");
-      if (value !== e.target.value) {
-        e.target.value = value;
-      }
+      // Only validate on input, don't modify the value
       this.validateInput(
         e.target,
         1,
@@ -345,17 +341,40 @@ class PhotoLayoutEditor {
     });
 
     customHeightInput.addEventListener("input", (e) => {
-      // Allow only numbers and backspace
-      let value = e.target.value.replace(/[^\d]/g, "");
-      if (value !== e.target.value) {
-        e.target.value = value;
-      }
+      // Only validate on input, don't modify the value
       this.validateInput(
         e.target,
         1,
         297,
         document.getElementById("heightValidation")
       );
+    });
+
+    // Add blur handlers to clean up invalid input when user is done typing
+    customWidthInput.addEventListener("blur", (e) => {
+      let value = e.target.value;
+      if (value === "" || isNaN(value) || value < 1 || value > 210) {
+        e.target.value = "100"; // Reset to default
+        this.validateInput(
+          e.target,
+          1,
+          210,
+          document.getElementById("widthValidation")
+        );
+      }
+    });
+
+    customHeightInput.addEventListener("blur", (e) => {
+      let value = e.target.value;
+      if (value === "" || isNaN(value) || value < 1 || value > 297) {
+        e.target.value = "150"; // Reset to default
+        this.validateInput(
+          e.target,
+          1,
+          297,
+          document.getElementById("heightValidation")
+        );
+      }
     });
 
     // Update custom size checkbox handler
