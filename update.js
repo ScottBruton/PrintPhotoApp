@@ -63,19 +63,28 @@ async function installUpdate(downloadUrl) {
     });
 
     // Start download
-    const installerPath = await window.electron.invoke("download-update", downloadUrl);
+    const installerPath = await window.electron.invoke(
+      "download-update",
+      downloadUrl
+    );
+    console.log("Download completed, installer path:", installerPath);
 
     message.textContent = "Installing update...";
     progress.classList.add("hidden");
 
-    await window.electron.invoke("install-update", installerPath);
-
-    message.textContent = "Update installed! Restarting...";
-    setTimeout(() => {
-      window.electron.invoke("restart-app");
-    }, 1500);
+    try {
+      await window.electron.invoke("install-update", installerPath);
+      message.textContent = "Update installed! Restarting...";
+      setTimeout(() => {
+        window.electron.invoke("restart-app");
+      }, 1500);
+    } catch (installError) {
+      console.error("Installation error:", installError);
+      throw new Error(`Failed to install update: ${installError.message}`);
+    }
   } catch (error) {
-    showError(error.message);
+    console.error("Update process failed:", error);
+    showError(`Update failed: ${error.message}`);
   }
 }
 
