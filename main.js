@@ -6,10 +6,10 @@ const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
 const UpdateChecker = require("./update-checker");
-const os = require('os');
-const { jsPDF } = require('jspdf');
-const html2canvas = require('html2canvas');
-const { setupIpcHandlers } = require('./electron-utils');
+const os = require("os");
+const { jsPDF } = require("jspdf");
+const html2canvas = require("html2canvas");
+const { setupIpcHandlers } = require("./electron-utils");
 
 // Setup IPC handlers
 setupIpcHandlers();
@@ -45,7 +45,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile("index.html");
-  
+
   // Wait for window to be ready
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Main window loaded and ready");
@@ -74,22 +74,32 @@ function createUpdateWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
+    movable: true,
+    titleBarStyle: "hidden",
+    parent: mainWindow,
+    focusable: true,
   });
+
+  updateWindow.setAlwaysOnTop(true, "screen-saver");
 
   updateWindow.loadFile("update.html");
-  
-  updateWindow.once('ready-to-show', () => {
+
+  updateWindow.once("ready-to-show", () => {
     console.log("Update window ready to show");
     updateWindow.show();
+    updateWindow.focus();
   });
 
-  updateWindow.webContents.on('did-finish-load', () => {
+  updateWindow.webContents.on("did-finish-load", () => {
     console.log("Update window content loaded");
   });
 
-  updateWindow.on('closed', () => {
+  updateWindow.on("closed", () => {
     console.log("Update window closed");
     updateWindow = null;
+    if (!mainWindow) {
+      createWindow();
+    }
   });
 }
 
@@ -400,28 +410,16 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
 // App startup
 app.whenReady().then(async () => {
   console.log("App ready");
-  
-  // Create update window first and wait for it to be ready
   createUpdateWindow();
-  await new Promise(resolve => {
-    updateWindow.once('ready-to-show', () => {
-      console.log("Update window ready");
-      updateWindow.show();
-      resolve();
-    });
-  });
-  
-  // Create main window after update window is ready
-  createWindow();
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
@@ -432,35 +430,40 @@ ipcMain.handle("create-temp-pdf", async (event, htmlContent) => {
   try {
     const timestamp = new Date().getTime();
     const tempPath = path.join(os.tmpdir(), `print_${timestamp}.pdf`);
-    
+
     // Create PDF
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      hotfixes: ['px_scaling']
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      hotfixes: ["px_scaling"],
     });
 
     // Convert HTML content to PDF
-    const dataUrl = await event.sender.webContents.capturePage().then(image => {
-      return image.toDataURL();
-    });
+    const dataUrl = await event.sender.webContents
+      .capturePage()
+      .then((image) => {
+        return image.toDataURL();
+      });
 
     // Add image to PDF
     pdf.addImage(
       dataUrl,
-      'PNG',
+      "PNG",
       0,
       0,
       pdf.internal.pageSize.getWidth(),
       pdf.internal.pageSize.getHeight(),
       undefined,
-      'FAST'
+      "FAST"
     );
 
     // Save PDF
-    await fs.promises.writeFile(tempPath, Buffer.from(pdf.output('arraybuffer')));
-    
+    await fs.promises.writeFile(
+      tempPath,
+      Buffer.from(pdf.output("arraybuffer"))
+    );
+
     return tempPath;
   } catch (error) {
     console.error("Error creating PDF:", error);
@@ -469,24 +472,24 @@ ipcMain.handle("create-temp-pdf", async (event, htmlContent) => {
 });
 
 ipcMain.handle("get-temp-file", async (event, filename) => {
-    return path.join(os.tmpdir(), filename);
+  return path.join(os.tmpdir(), filename);
 });
 
 ipcMain.handle("save-print-pdf", async (event, { path: filePath, data }) => {
-    try {
-        await fs.promises.writeFile(filePath, Buffer.from(data));
-        return { success: true };
-    } catch (error) {
-        console.error("Error saving PDF:", error);
-        return { success: false, error: error.message };
-    }
+  try {
+    await fs.promises.writeFile(filePath, Buffer.from(data));
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving PDF:", error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Keep the detailed handlers at the end
 const updateChecker = new UpdateChecker();
 
 // Add IPC handlers for updates
-ipcMain.handle('check-for-updates', async () => {
+ipcMain.handle("check-for-updates", async () => {
   console.log("Received check-for-updates request");
   try {
     const result = await updateChecker.checkForUpdates();
@@ -498,12 +501,12 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
-ipcMain.handle('download-update', async (event, downloadUrl) => {
+ipcMain.handle("download-update", async (event, downloadUrl) => {
   console.log("Received download-update request for URL:", downloadUrl);
   try {
     return await updateChecker.downloadUpdate(downloadUrl, (progress) => {
       console.log("Download progress:", progress);
-      event.sender.send('download-progress', progress);
+      event.sender.send("download-progress", progress);
     });
   } catch (error) {
     console.error("Download error:", error);
@@ -511,7 +514,7 @@ ipcMain.handle('download-update', async (event, downloadUrl) => {
   }
 });
 
-ipcMain.handle('install-update', async (event, installerPath) => {
+ipcMain.handle("install-update", async (event, installerPath) => {
   console.log("Received install-update request for path:", installerPath);
   try {
     await updateChecker.installUpdate(installerPath);
@@ -522,8 +525,18 @@ ipcMain.handle('install-update', async (event, installerPath) => {
   }
 });
 
-ipcMain.handle('restart-app', () => {
+ipcMain.handle("restart-app", () => {
   console.log("Restarting app...");
   app.relaunch();
   app.exit();
+});
+
+// Add this with your other ipcMain handlers
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
+});
+
+ipcMain.handle("cancel-download", () => {
+  console.log("Cancelling download...");
+  updateChecker.cancelDownload();
 });

@@ -6,7 +6,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
     "dev": "nodemon --watch * --exec \"electron .\"",
-    "dev-reload": "electron . --dev-reload"
+    "dev-reload": "electron . --dev-reload",
+    "build": "electron-builder",
+    "publish": "electron-builder -p always"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +16,7 @@
   "description": "",
   "devDependencies": {
     "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
     "electron-reloader": "^1.2.3",
     "nodemon": "^3.1.9"
   },
@@ -22,5 +25,20 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "simple-git": "^3.27.0"
+  },
+  "build": {
+    "appId": "com.scobro.printphotoapp",
+    "productName": "PrintPhotoApp",
+    "win": {
+      "target": "nsis",
+      "icon": "asset/scoBroPrints.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PrintPhotoApp"
+    }
   }
 }

@@ -1,133 +1,119 @@
-let mainWindow = null;
+let updateAvailable = false;
+let downloadUrl = null;
+let isUpdating = false;
+let isCancelled = false;
 
-console.log("Update.js loaded");
+const updateStatus = document.getElementById("updateStatus");
+const progressBar = document.getElementById("progressFill");
+const installButton = document.getElementById("installButton");
+const closeButton = document.getElementById("closeButton");
+const errorDiv = document.getElementById("error");
 
-async function checkForUpdates() {
-  console.log("Checking for updates...");
+// Check for updates when the window loads
+window.addEventListener("DOMContentLoaded", async () => {
   try {
+    updateStatus.textContent = "Checking for updates...";
     const result = await window.electron.invoke("check-for-updates");
-    console.log("Update check result:", result);
 
     if (result.error) {
-      console.error("Update check error:", result.error);
-      showError(result.error);
-      return;
+      throw new Error(result.error);
     }
 
     if (result.needsUpdate) {
-      console.log("Update available:", result);
-      showUpdateAvailable(result);
+      updateStatus.textContent = `Update available: ${result.latestVersion}`;
+      updateAvailable = true;
+      downloadUrl = result.downloadUrl;
+      installButton.style.display = "inline-block";
+      closeButton.textContent = "Skip Update";
     } else {
-      console.log("No update needed");
-      showUpToDate();
+      updateStatus.textContent = "You are up to date!";
+      setTimeout(() => window.electron.invoke("create-main-window"), 1500);
     }
   } catch (error) {
     console.error("Update check failed:", error);
-    showError(error.message);
+    errorDiv.textContent = `Error checking for updates: ${error.message}`;
+    updateStatus.textContent = "Update check failed";
   }
-}
+});
 
-function showUpdateAvailable(updateInfo) {
-  const loader = document.querySelector(".loader");
-  const message = document.querySelector(".update-message");
-  const buttons = document.querySelector(".buttons");
-  const progress = document.querySelector(".progress");
-
-  loader.classList.add("hidden");
-  message.textContent = `Update available! Current version: ${updateInfo.currentVersion}, New version: ${updateInfo.latestVersion}`;
-  buttons.classList.remove("hidden");
-
-  // Add button handlers
-  document
-    .querySelector(".update-btn")
-    .addEventListener("click", () => installUpdate(updateInfo.downloadUrl));
-  document.querySelector(".skip-btn").addEventListener("click", skipUpdate);
-}
-
-async function installUpdate(downloadUrl) {
+// Handle install button click
+installButton.addEventListener("click", async () => {
   try {
-    const loader = document.querySelector(".loader");
-    const message = document.querySelector(".update-message");
-    const buttons = document.querySelector(".buttons");
-    const progress = document.querySelector(".progress");
+    isUpdating = true;
+    isCancelled = false;
+    installButton.disabled = true;
+    closeButton.textContent = "Cancel";
+    updateStatus.textContent = "Downloading update...";
 
-    loader.classList.remove("hidden");
-    buttons.classList.add("hidden");
-    progress.classList.remove("hidden");
-    message.textContent = "Downloading update...";
+    // Remove any existing progress listeners
+    window.electron.removeAllListeners?.("download-progress");
 
-    // Setup progress listener
-    window.electron.on("download-progress", (percent) => {
-      progress.style.setProperty("--progress", `${percent}%`);
-      progress.setAttribute("data-progress", `${Math.round(percent)}%`);
+    // Listen for download progress
+    window.electron.on("download-progress", (progress) => {
+      if (!isCancelled) {
+        progressBar.style.width = `${progress}%`;
+      }
     });
 
-    // Start download
+    // Download the update
     const installerPath = await window.electron.invoke(
       "download-update",
       downloadUrl
     );
-    console.log("Download completed, installer path:", installerPath);
 
-    message.textContent = "Installing update...";
-    progress.classList.add("hidden");
+    if (isCancelled) return;
 
-    try {
-      await window.electron.invoke("install-update", installerPath);
-      message.textContent = "Update installed! Restarting...";
-      setTimeout(() => {
-        window.electron.invoke("restart-app");
-      }, 1500);
-    } catch (installError) {
-      console.error("Installation error:", installError);
-      throw new Error(`Failed to install update: ${installError.message}`);
-    }
+    updateStatus.textContent = "Installing update...";
+
+    // Install the update
+    await window.electron.invoke("install-update", installerPath);
+
+    if (isCancelled) return;
+
+    // Restart the app
+    await window.electron.invoke("restart-app");
   } catch (error) {
-    console.error("Update process failed:", error);
-    showError(`Update failed: ${error.message}`);
+    if (!isCancelled) {
+      console.error("Update failed:", error);
+      errorDiv.textContent = `Update failed: ${error.message}`;
+      installButton.disabled = false;
+      updateStatus.textContent = "Update failed";
+      isUpdating = false;
+      closeButton.textContent = "Skip Update";
+    }
   }
-}
+});
 
-function skipUpdate() {
-  createMainWindow();
-}
+// Handle close/cancel button click
+closeButton.addEventListener("click", async () => {
+  if (isUpdating) {
+    // Cancel the update process
+    isCancelled = true;
+    isUpdating = false;
 
-function showError(message) {
-  const loader = document.querySelector(".loader");
-  const messageEl = document.querySelector(".update-message");
-  const okButton = document.querySelector(".ok-btn");
-  const progress = document.querySelector(".progress");
+    // Cancel the download
+    try {
+      await window.electron.cancelDownload();
+    } catch (error) {
+      // Ignore the cancellation error as it's expected
+      console.log("Download cancelled");
+    }
 
-  loader.classList.add("hidden");
-  progress.classList.add("hidden");
-  messageEl.textContent = `Error: ${message}`;
-  messageEl.style.color = "#e74c3c";
-  okButton.classList.remove("hidden");
+    updateStatus.textContent = "Update cancelled";
+    installButton.disabled = false;
+    progressBar.style.width = "0%";
+    closeButton.textContent = "Skip Update";
 
-  okButton.addEventListener("click", () => {
-    createMainWindow();
-  });
-}
+    // Remove progress listener
+    window.electron.removeAllListeners?.("download-progress");
+  }
 
-function showUpToDate() {
-  const loader = document.querySelector(".loader");
-  const message = document.querySelector(".update-message");
-  const okButton = document.querySelector(".ok-btn");
-  const progress = document.querySelector(".progress");
-
-  loader.classList.add("hidden");
-  progress.classList.add("hidden");
-  message.textContent = "Application is up to date!";
-  okButton.classList.remove("hidden");
-
-  okButton.addEventListener("click", () => {
-    createMainWindow();
-  });
-}
-
-function createMainWindow() {
-  window.close();
-}
-
-// Start update check when window loads
-window.addEventListener("DOMContentLoaded", checkForUpdates);
+  // Create main window and close update window
+  try {
+    // Instead of using create-main-window, let's just close the update window
+    // The main window will be created by the main process
+    window.close();
+  } catch (error) {
+    console.error("Error closing update window:", error);
+  }
+});

@@ -9,6 +9,14 @@ class UpdateChecker {
     this.owner = "ScottBruton";
     this.repo = "PrintPhotoApp";
     this.currentVersion = app.getVersion();
+    this.abortController = null;
+  }
+
+  cancelDownload() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 
   async checkForUpdates() {
@@ -98,8 +106,16 @@ class UpdateChecker {
       }
 
       const file = fs.createWriteStream(tempPath);
+      this.abortController = new AbortController();
 
       const handleResponse = (response) => {
+        if (this.abortController.signal.aborted) {
+          file.end();
+          fs.unlink(tempPath, () => {});
+          reject(new Error("Download cancelled"));
+          return;
+        }
+
         // Handle redirects
         if (response.statusCode === 302 || response.statusCode === 301) {
           console.log("Following redirect to:", response.headers.location);
@@ -151,47 +167,53 @@ class UpdateChecker {
         });
       };
 
-      https.get(url, handleResponse).on("error", (err) => {
+      const request = https.get(url, handleResponse).on("error", (err) => {
         file.end();
         fs.unlink(tempPath, () => {});
         console.error("Download error:", err);
         reject(err);
+      });
+
+      this.abortController.signal.addEventListener("abort", () => {
+        request.destroy();
+        file.end();
+        fs.unlink(tempPath, () => {});
+        reject(new Error("Download cancelled"));
       });
     });
   }
 
   async installUpdate(installerPath) {
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        try {
-          if (!fs.existsSync(installerPath)) {
-            reject(new Error(`Installer not found at path: ${installerPath}`));
+      try {
+        if (!fs.existsSync(installerPath)) {
+          reject(new Error(`Installer not found at path: ${installerPath}`));
+          return;
+        }
+
+        const fullPath = path.resolve(installerPath);
+        console.log("Installing from path:", fullPath);
+
+        // Kill the current app process before installing
+        const command = `taskkill /F /IM PrintPhotoApp.exe & "${fullPath}" /S`;
+
+        exec(command, (error, stdout, stderr) => {
+          if (error) {
+            console.error("Exec error:", error);
+            console.error("Stderr:", stderr);
+            reject(error);
             return;
           }
 
-          const fullPath = path.resolve(installerPath);
-          console.log("Installing from path:", fullPath);
+          console.log("Installer started successfully");
+          console.log("Stdout:", stdout);
 
-          const command = `"${fullPath}" /SILENT /NORESTART`;
-
-          exec(command, (error, stdout, stderr) => {
-            if (error) {
-              console.error("Exec error:", error);
-              console.error("Stderr:", stderr);
-              reject(error);
-              return;
-            }
-
-            console.log("Installer started successfully");
-            console.log("Stdout:", stdout);
-
-            resolve();
-          });
-        } catch (error) {
-          console.error("Installation error:", error);
-          reject(error);
-        }
-      }, 1500);
+          resolve();
+        });
+      } catch (error) {
+        console.error("Installation error:", error);
+        reject(error);
+      }
     });
   }
 }
