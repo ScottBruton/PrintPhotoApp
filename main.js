@@ -504,10 +504,15 @@ ipcMain.handle("check-for-updates", async () => {
 ipcMain.handle("download-update", async (event, downloadUrl) => {
   console.log("Received download-update request for URL:", downloadUrl);
   try {
-    return await updateChecker.downloadUpdate(downloadUrl, (progress) => {
-      console.log("Download progress:", progress);
-      event.sender.send("download-progress", progress);
-    });
+    const installerPath = await updateChecker.downloadUpdate(
+      downloadUrl,
+      (progress) => {
+        console.log("Download progress:", progress);
+        event.sender.send("download-progress", progress);
+      }
+    );
+
+    return { cancelled: false, installerPath };
   } catch (error) {
     if (error.name === "DownloadCancelledError") {
       console.log("Download was cancelled by user");
@@ -518,9 +523,15 @@ ipcMain.handle("download-update", async (event, downloadUrl) => {
   }
 });
 
+function closeAllWindows() {
+  if (updateWindow) updateWindow.destroy();
+  if (mainWindow) mainWindow.destroy();
+}
+
 ipcMain.handle("install-update", async (event, installerPath) => {
   console.log("Received install-update request for path:", installerPath);
   try {
+    closeAllWindows(); // Close all windows before installing
     await updateChecker.installUpdate(installerPath);
     return true;
   } catch (error) {

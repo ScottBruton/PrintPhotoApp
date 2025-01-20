@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Add this at the top to determine dev mode
+const isDevMode = process.defaultApp || /[\\/]electron/i.test(process.execPath);
+
 // Add console log to verify preload script is running
 console.log("Preload script running");
 
@@ -54,4 +57,5 @@ contextBridge.exposeInMainWorld("electron", {
     }
   },
   cancelDownload: () => ipcRenderer.invoke("cancel-download"),
+  isDevMode: () => isDevMode,
 });

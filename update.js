@@ -63,15 +63,24 @@ installButton.addEventListener("click", async () => {
       return;
     }
 
+    if (!result.installerPath) {
+      throw new Error("No installer path received from download");
+    }
+
     updateStatus.textContent = "Installing update...";
 
     // Install the update
     await window.electron.invoke("install-update", result.installerPath);
 
-    if (isCancelled) return;
-
-    // Restart the app
-    await window.electron.invoke("restart-app");
+    // Show development mode message or handle production quit
+    if (window.electron.isDevMode()) {
+      updateStatus.textContent =
+        "Update simulation complete (Development Mode)";
+      setTimeout(() => {
+        window.close();
+      }, 2000);
+    }
+    // The app will quit automatically in production mode
   } catch (error) {
     if (!isCancelled) {
       console.error("Update failed:", error);

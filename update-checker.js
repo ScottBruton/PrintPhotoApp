@@ -199,24 +199,70 @@ class UpdateChecker {
         }
 
         const fullPath = path.resolve(installerPath);
-        console.log("Installing from path:", fullPath);
+        const isDevMode =
+          process.defaultApp || /[\\/]electron/i.test(process.execPath);
+        const currentInstallPath = isDevMode
+          ? process.cwd()
+          : path.dirname(app.getPath("exe")); // Get current installation path
 
-        // Kill the current app process before installing
-        const command = `taskkill /F /IM PrintPhotoApp.exe & "${fullPath}" /S`;
+        console.log("Installation details:");
+        console.log("- Installer path:", fullPath);
+        console.log("- Current install path:", currentInstallPath);
+        console.log("- Is dev mode:", isDevMode);
 
-        exec(command, (error, stdout, stderr) => {
-          if (error) {
-            console.error("Exec error:", error);
-            console.error("Stderr:", stderr);
-            reject(error);
-            return;
-          }
+        // Don't force an installation path - let NSIS handle it
+        const updateCommand = `"${fullPath}" /S`;
+        const batPath = path.join(app.getPath("temp"), "update.bat");
 
-          console.log("Installer started successfully");
-          console.log("Stdout:", stdout);
+        const batContent = `
+@echo off
+echo Waiting for application to close...
+timeout /t 2 /nobreak >nul
+:wait
+tasklist | find /i "PrintPhotoApp.exe" >nul 2>&1
+if %errorlevel% equ 0 (
+    timeout /t 1 /nobreak >nul
+    goto :wait
+)
+echo Installing update...
+${updateCommand}
+echo Waiting for installation to complete...
+timeout /t 10 /nobreak >nul
+echo Starting application...
+for /f "tokens=*" %%i in ('dir /b /s "C:\\Program Files*\\PrintPhotoApp\\PrintPhotoApp.exe" 2^>nul') do (
+    echo Found application at: %%i
+    start "" "%%i"
+    goto :found
+)
+echo Error: Application not found
+:found
+echo Cleaning up...
+del "%~f0"
+        `.trim();
 
+        // In development mode, just show what would happen
+        if (isDevMode) {
+          console.log("\n=== Development Mode - Update Simulation ===");
+          console.log("Would create batch file at:", batPath);
+          console.log("\nBatch file contents would be:");
+          console.log(batContent);
+          console.log("\nIn production:");
+          console.log("1. App would quit");
+          console.log("2. Batch file would wait for app to close");
+          console.log("3. Installer would run silently");
+          console.log("4. New version would start automatically");
+          console.log("=====================================\n");
           resolve();
-        });
+          return;
+        }
+
+        // Production mode: Actually create and execute the batch file
+        fs.writeFileSync(batPath, batContent, "utf-8");
+        console.log("Created update batch file:", batPath);
+        exec(`start /min "" "${batPath}"`);
+        console.log("Started update batch file");
+        app.quit();
+        resolve();
       } catch (error) {
         console.error("Installation error:", error);
         reject(error);
