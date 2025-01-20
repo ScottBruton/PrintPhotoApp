@@ -68,19 +68,18 @@ installButton.addEventListener("click", async () => {
     }
 
     updateStatus.textContent = "Installing update...";
+    console.log("Installing from path:", result.installerPath);
 
-    // Install the update
+    // Pass just the installer path string, not the whole object
     await window.electron.invoke("install-update", result.installerPath);
 
     // Show development mode message or handle production quit
     if (window.electron.isDevMode()) {
-      updateStatus.textContent =
-        "Update simulation complete (Development Mode)";
+      updateStatus.textContent = "Update simulation complete (Development Mode)";
       setTimeout(() => {
         window.close();
       }, 2000);
     }
-    // The app will quit automatically in production mode
   } catch (error) {
     if (!isCancelled) {
       console.error("Update failed:", error);
