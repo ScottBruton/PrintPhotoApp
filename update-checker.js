@@ -4,6 +4,13 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
+class DownloadCancelledError extends Error {
+  constructor() {
+    super("Download cancelled");
+    this.name = "DownloadCancelledError";
+  }
+}
+
 class UpdateChecker {
   constructor() {
     this.owner = "ScottBruton";
@@ -112,7 +119,7 @@ class UpdateChecker {
         if (this.abortController.signal.aborted) {
           file.end();
           fs.unlink(tempPath, () => {});
-          reject(new Error("Download cancelled"));
+          reject(new DownloadCancelledError());
           return;
         }
 
@@ -178,7 +185,7 @@ class UpdateChecker {
         request.destroy();
         file.end();
         fs.unlink(tempPath, () => {});
-        reject(new Error("Download cancelled"));
+        reject(new DownloadCancelledError());
       });
     });
   }

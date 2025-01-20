@@ -509,6 +509,10 @@ ipcMain.handle("download-update", async (event, downloadUrl) => {
       event.sender.send("download-progress", progress);
     });
   } catch (error) {
+    if (error.name === "DownloadCancelledError") {
+      console.log("Download was cancelled by user");
+      return { cancelled: true };
+    }
     console.error("Download error:", error);
     throw error;
   }
@@ -537,6 +541,7 @@ ipcMain.handle("get-app-version", () => {
 });
 
 ipcMain.handle("cancel-download", () => {
-  console.log("Cancelling download...");
+  console.log("User cancelled download");
   updateChecker.cancelDownload();
+  return { success: true };
 });

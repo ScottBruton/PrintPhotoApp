@@ -56,17 +56,17 @@ installButton.addEventListener("click", async () => {
     });
 
     // Download the update
-    const installerPath = await window.electron.invoke(
-      "download-update",
-      downloadUrl
-    );
+    const result = await window.electron.invoke("download-update", downloadUrl);
 
-    if (isCancelled) return;
+    if (result.cancelled || isCancelled) {
+      console.log("Update was cancelled");
+      return;
+    }
 
     updateStatus.textContent = "Installing update...";
 
     // Install the update
-    await window.electron.invoke("install-update", installerPath);
+    await window.electron.invoke("install-update", result.installerPath);
 
     if (isCancelled) return;
 
