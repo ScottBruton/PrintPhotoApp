@@ -261,147 +261,45 @@ class PrintManager {
   }
 
   async executePrint() {
-    // Gather all settings
-    const settings = {
-      printer: this.dialog.querySelector("#printerSelect").value,
-      copies: parseInt(this.dialog.querySelector("#copiesInput").value),
-      layout: this.dialog.querySelector('input[name="layout"]:checked').value,
-      pages: this.dialog.querySelector('input[name="pages"]:checked').value,
-      pageRanges: this.dialog.querySelector(".page-ranges").value,
-      quality: parseInt(this.dialog.querySelector("#printQuality").value),
-      paperType: this.dialog.querySelector('input[name="paperType"]:checked')
-        .value,
-    };
-
     try {
-      // Validate settings before proceeding
+      // Gather all settings
+      const settings = {
+        printer: this.dialog.querySelector("#printerSelect").value,
+        copies: parseInt(this.dialog.querySelector("#copiesInput").value),
+        layout: this.dialog.querySelector('input[name="layout"]:checked').value,
+        pages: this.dialog.querySelector('input[name="pages"]:checked').value,
+        pageRanges: this.dialog.querySelector(".page-ranges").value,
+        quality: parseInt(this.dialog.querySelector("#printQuality").value),
+        paperType: this.dialog.querySelector('input[name="paperType"]:checked').value,
+      };
+
+      console.log("Print settings:", settings);
+
+      // Validate settings
       const validation = await this.validatePrintJob(settings);
       if (!validation.isValid) {
         this.showToast(validation.errors.join('\n'));
         return;
       }
 
-      // Get the HTML content from layoutRenderer
-      const layoutRenderer = window.rendererInstance.layoutRenderer;
-      const htmlContent = layoutRenderer.generateHTML();
-
-      // Save HTML to a temporary file and get the file path
-      const tempFilePath = await window.electron.invoke('save-temp-html', htmlContent);
-
-      try {
-      const pdf = new window.jspdf.jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "absolute";
-      tempContainer.style.left = "-9999px";
-      document.body.appendChild(tempContainer);
-
-      tempContainer.innerHTML = htmlContent;
-
-      for (let i = 0; i < window.rendererInstance.sessionManager.sessionData.pages.length; i++) {
-        // Get the page element
-        const pageElement = tempContainer.querySelector(
-          `[data-page="${i + 1}"]`
-        );
-        if (!pageElement) continue;
-
-        // Show current page and hide others
-        pageElement.style.display = "block";
-
-        // Hide empty placeholders before capture
-        const emptyPlaceholders = pageElement.querySelectorAll(
-          ".photo-placeholder:not(:has(img))"
-        );
-        emptyPlaceholders.forEach((placeholder) => {
-          placeholder.style.display = "none";
-        });
-
-        // Remove dotted borders and backgrounds for capture
-        const placeholders = pageElement.querySelectorAll(".photo-placeholder");
-        placeholders.forEach((placeholder) => {
-          placeholder.style.border = "none";
-          placeholder.style.backgroundColor = "transparent";
-        });
-
-        // Hide edit overlays and delete buttons for capture
-        const editOverlays = pageElement.querySelectorAll(
-          ".edit-overlay, .page-delete-btn"
-        );
-        editOverlays.forEach((overlay) => {
-          overlay.style.display = "none";
-        });
-
-        // Wait for images to load
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Capture the page
-        const canvas = await html2canvas(pageElement, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-        });
-
-        // Add page to PDF (except first page)
-        if (i > 0) {
-          pdf.addPage();
-        }
-
-        // Add the image to the PDF
-        const imgData = canvas.toDataURL("image/png");
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
-      }
-
-      // Clean up the temporary container
-      document.body.removeChild(tempContainer);
-
-      // Save the PDF
-      pdf.save("photo-layout.pdf");
-
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Error generating PDF. Please try again.");
-    }
-      // Send to print handler
-      const result = await window.electron.invoke('print', tempFilePath, settings);
+      // Send to print using Windows printing with existing temp file
+      const result = await window.electron.winPrint.printFile("temp/currentLayout.html", settings.printer);
+      console.log("Print result:", result);
 
       if (result.success) {
-        this.showToast('Print job sent successfully');
+        this.showToast(`Successfully sent to printer: ${settings.printer}`);
         this.closeDialog(true);
       } else {
-        this.showToast(`Print failed: ${result.error}`);
+        throw new Error(result.error || result.message || "Print failed");
       }
     } catch (error) {
-      // Log detailed error information
-      console.error('Print error:', {
-        error,
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-
-      // Handle specific error cases
-      if (error.message.includes('ECONNREFUSED')) {
-
-        this.showToast('Cannot connect to printer. Please check network connection and printer status.');
-
-      } else if (error.message.includes('Access denied')) {
-
-        this.showToast('Access to printer denied. Please check printer permissions and network access.');
-
-      } else if (error.name === 'TypeError' && error.message.includes('Cannot read properties of undefined')) {
-
-        this.showToast('Print system not responding. Please check if:\n- Printer software is installed\n- Print service is running\n- You have necessary permissions');
-
-      } else {
-
-        this.showToast(`Print failed: ${error.message || 'Could not send print job to printer'}`);
-
-      }
+      console.error("Print error:", error);
+      this.showToast(
+        `Print failed: ${error.message}\n\nPlease check if:\n` +
+        "- Printer software is installed\n" +
+        "- Print service is running\n" +
+        "- You have necessary permissions"
+      );
     }
   }
 

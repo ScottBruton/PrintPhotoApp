@@ -182,6 +182,8 @@ ipcMain.handle("get-printers", async (event) => {
 ipcMain.handle("print", async (event, content, settings) => {
   try {
     console.log("Print settings:", settings);
+    
+    // Create print window
     const printWindow = new BrowserWindow({
       show: false,
       webPreferences: {
@@ -190,41 +192,29 @@ ipcMain.handle("print", async (event, content, settings) => {
       },
     });
 
-    // Create a temporary HTML file
     const tempPath = path.join(app.getPath("temp"), "print-content.html");
-    fs.writeFileSync(tempPath, content);
+    console.log("Writing content to:", tempPath);
+    fs.writeFileSync(tempPath, content, 'utf8');
+
+    if (!fs.existsSync(tempPath)) {
+      throw new Error("Failed to create temp file");
+    }
+
+    // Load the content into the window
     await printWindow.loadFile(tempPath);
 
     // Handle Test Printer
     if (settings.printer === "Test Printer") {
       console.log("\n=== TEST PRINTER DEBUG INFO ===");
-      console.log("Print settings:", {
-        printer: settings.printer,
-        copies: settings.copies,
-        layout: settings.layout,
-        pages: settings.pages,
-        pageRanges: settings.pageRanges,
-        quality: settings.quality,
-        paperType: settings.paperType,
-      });
-      console.log("Paper size: A4");
-      console.log("DPI:", settings.quality);
-      console.log("Paper Type:", settings.paperType);
-      console.log("=== END DEBUG INFO ===\n");
-
-      // Simulate printing delay
+      console.log("Print settings:", settings);
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
       printWindow.close();
       fs.unlinkSync(tempPath);
-      return true; // Return true to indicate success
+      return true;
     }
 
     // Handle PDF printing
     if (settings.printer === "Save as PDF") {
-      // Close print window before showing save dialog
-      printWindow.close();
-
       const { filePath } = await dialog.showSaveDialog({
         title: "Save PDF",
         defaultPath: path.join(app.getPath("documents"), "print-output.pdf"),
@@ -232,33 +222,21 @@ ipcMain.handle("print", async (event, content, settings) => {
       });
 
       if (!filePath) {
+        printWindow.close();
+        fs.unlinkSync(tempPath);
         return false;
       }
 
-      // Create a new window for PDF generation
-      const pdfWindow = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-        },
-      });
-
-      await pdfWindow.loadFile(tempPath);
-      const pdfData = await pdfWindow.webContents.printToPDF({
+      const pdfData = await printWindow.webContents.printToPDF({
         printBackground: true,
         landscape: settings.layout === "landscape",
-        pageRanges:
-          settings.pages === "custom" ? settings.pageRanges : undefined,
-        margins: {
-          marginType: "none",
-        },
+        pageRanges: settings.pages === "custom" ? settings.pageRanges : undefined,
+        margins: { marginType: "none" },
         dpi: settings.quality || 600,
-        resolution: settings.quality || 600,
       });
 
       fs.writeFileSync(filePath, pdfData);
-      pdfWindow.close();
+      printWindow.close();
       fs.unlinkSync(tempPath);
       return true;
     }
@@ -373,37 +351,65 @@ ipcMain.handle("win-set-default-printer", async (event, printerName) => {
 
 ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
-    // Validate inputs
-    if (!filePath || !printerName) {
-      throw new Error("Missing required parameters");
-    }
-
-    const pythonProcess = spawn("python", [
-      "print_handler.py",
-      "print",
-      filePath,
-      printerName,
-    ]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
+    const absolutePath = path.join(app.getAppPath(), filePath);
+    console.log("Printing file:", absolutePath);
+    
+    // Create a hidden window for printing
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
     });
-    return JSON.parse(result);
+
+    // Load the HTML file
+    await printWindow.loadFile(absolutePath);
+    
+    // Wait a bit for content to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Return a promise that resolves when printing is complete
+    return new Promise((resolve) => {
+      printWindow.webContents.print(
+        {
+          silent: false,
+          printBackground: true,
+          deviceName: printerName,
+          color: true,
+          margins: { marginType: "none" },
+          pageSize: "A4",
+          landscape: false,
+          scaleFactor: 100,
+          copies: 1,
+          collate: true
+        },
+        (success, errorType) => {
+          console.log("Print callback:", success, errorType);
+          printWindow.close();
+
+          if (success) {
+            resolve({ 
+              success: true, 
+              message: "Print job sent successfully" 
+            });
+          } else {
+            resolve({ 
+              success: false, 
+              error: errorType || "Print was cancelled or failed"
+            });
+          }
+        }
+      );
+    });
+
   } catch (error) {
-    console.error("Error printing file:", error);
-    return { success: false, error: error.message };
+    console.error("Error in print handler:", error);
+    return { 
+      success: false, 
+      error: error.message || "Print failed",
+      details: error.toString()
+    };
   }
 });
 
