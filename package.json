@@ -28,6 +28,16 @@
   "build": {
     "appId": "com.scobro.printphotoapp",
     "productName": "PrintPhotoApp",
+    "files": [
+      "**/*",
+      "UpdateScript.ps1"
+    ],
+    "extraResources": [
+      {
+        "from": "UpdateScript.ps1",
+        "to": "UpdateScript.ps1"
+      }
+    ],
     "win": {
       "target": "nsis",
       "icon": "asset/scoBroPrints.ico"

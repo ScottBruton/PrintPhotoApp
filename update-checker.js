@@ -2,7 +2,19 @@ const { app } = require("electron");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
-const { exec } = require("child_process");
+const { spawn } = require("child_process");
+
+// Add logging functionality
+function writeLog(message) {
+  const logPath = path.join(app.getPath("temp"), "PrintPhotoApp-UpdateChecker.log");
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  
+  // Write to file
+  fs.appendFileSync(logPath, logMessage);
+  // Also log to console
+  console.log(message);
+}
 
 class DownloadCancelledError extends Error {
   constructor() {
@@ -193,78 +205,146 @@ class UpdateChecker {
   async installUpdate(installerPath) {
     return new Promise((resolve, reject) => {
       try {
+        writeLog("=== Installation Process Started ===");
+        
         if (!fs.existsSync(installerPath)) {
-          reject(new Error(`Installer not found at path: ${installerPath}`));
+          const error = `Installer not found at path: ${installerPath}`;
+          writeLog(error);
+          reject(new Error(error));
           return;
         }
 
         const fullPath = path.resolve(installerPath);
-        const isDevMode =
-          process.defaultApp || /[\\/]electron/i.test(process.execPath);
+        const isDevMode = process.defaultApp || /[\\/]electron/i.test(process.execPath);
         const currentInstallPath = isDevMode
           ? process.cwd()
-          : path.dirname(app.getPath("exe")); // Get current installation path
+          : path.dirname(app.getPath("exe"));
 
-        console.log("Installation details:");
-        console.log("- Installer path:", fullPath);
-        console.log("- Current install path:", currentInstallPath);
-        console.log("- Is dev mode:", isDevMode);
+        writeLog("Installation details:");
+        writeLog(`- Installer path: ${fullPath}`);
+        writeLog(`- Current install path: ${currentInstallPath}`);
+        writeLog(`- Is dev mode: ${isDevMode}`);
 
-        // Don't force an installation path - let NSIS handle it
-        const updateCommand = `"${fullPath}" /S`;
-        const batPath = path.join(app.getPath("temp"), "update.bat");
+        // Copy UpdateScript.ps1 to temp directory
+        const psScriptPath = path.join(app.getPath("temp"), "UpdateScript.ps1");
+        
+        // Try different locations for the PowerShell script
+        let psSourcePath;
+        const possiblePaths = [
+          path.join(__dirname, "UpdateScript.ps1"), // Development
+          path.join(process.resourcesPath, "UpdateScript.ps1"), // Production
+          path.join(app.getAppPath(), "UpdateScript.ps1"), // Alternative
+        ];
 
-        const batContent = `
-@echo off
-echo Waiting for application to close...
-timeout /t 2 /nobreak >nul
-:wait
-tasklist | find /i "PrintPhotoApp.exe" >nul 2>&1
-if %errorlevel% equ 0 (
-    timeout /t 1 /nobreak >nul
-    goto :wait
-)
-echo Installing update...
-${updateCommand}
-echo Waiting for installation to complete...
-timeout /t 10 /nobreak >nul
-echo Starting application...
-for /f "tokens=*" %%i in ('dir /b /s "C:\\Program Files*\\PrintPhotoApp\\PrintPhotoApp.exe" 2^>nul') do (
-    echo Found application at: %%i
-    start "" "%%i"
-    goto :found
-)
-echo Error: Application not found
-:found
-echo Cleaning up...
-del "%~f0"
-        `.trim();
+        writeLog("\nSearching for UpdateScript.ps1 in:");
+        possiblePaths.forEach(p => writeLog(`- ${p}`));
+        
+        psSourcePath = possiblePaths.find(p => fs.existsSync(p));
+        
+        if (!psSourcePath) {
+          const error = "PowerShell script not found in any of the expected locations!";
+          writeLog(error);
+          reject(new Error(error));
+          return;
+        }
+
+        writeLog(`\nFound script at: ${psSourcePath}`);
+        writeLog(`Will copy to: ${psScriptPath}`);
+
+        // Copy the script
+        try {
+          fs.copyFileSync(psSourcePath, psScriptPath);
+          writeLog("PowerShell script copied successfully");
+        } catch (copyError) {
+          writeLog(`Error copying PowerShell script: ${copyError}`);
+          reject(copyError);
+          return;
+        }
+
+        // Verify the script was copied
+        if (!fs.existsSync(psScriptPath)) {
+          const error = "PowerShell script not found at destination after copy!";
+          writeLog(error);
+          reject(new Error(error));
+          return;
+        }
 
         // In development mode, just show what would happen
         if (isDevMode) {
-          console.log("\n=== Development Mode - Update Simulation ===");
-          console.log("Would create batch file at:", batPath);
-          console.log("\nBatch file contents would be:");
-          console.log(batContent);
-          console.log("\nIn production:");
-          console.log("1. App would quit");
-          console.log("2. Batch file would wait for app to close");
-          console.log("3. Installer would run silently");
-          console.log("4. New version would start automatically");
-          console.log("=====================================\n");
+          writeLog("\n=== Development Mode - Update Simulation ===");
+          writeLog(`Would execute PowerShell script at: ${psScriptPath}`);
+          writeLog("\nIn production:");
+          writeLog("1. App would quit");
+          writeLog("2. PowerShell script would handle the update");
+          writeLog("3. New version would start automatically");
+          writeLog("=====================================");
           resolve();
           return;
         }
 
-        // Production mode: Actually create and execute the batch file
-        fs.writeFileSync(batPath, batContent, "utf-8");
-        console.log("Created update batch file:", batPath);
-        exec(`start /min "" "${batPath}"`);
-        console.log("Started update batch file");
-        app.quit();
-        resolve();
+        // Execute PowerShell script using spawn
+        writeLog("\nLaunching PowerShell script...");
+        
+        // Create a batch file to run PowerShell elevated
+        const batchPath = path.join(app.getPath("temp"), "RunUpdate.bat");
+        const batchContent = `@echo off
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -InstallerPath "${fullPath}"
+`;
+        
+        writeLog("Creating batch file:");
+        writeLog(batchContent);
+        fs.writeFileSync(batchPath, batchContent);
+
+        const ps = spawn('runas', [
+          '/user:Administrator',
+          `cmd.exe /c "${batchPath}"`
+        ], {
+          windowsHide: false,
+          stdio: 'pipe',
+          shell: true,
+          windowsVerbatimArguments: true
+        });
+
+        ps.stdout.on('data', (data) => {
+          const output = data.toString().trim();
+          if (output) {
+            writeLog(`PowerShell output: ${output}`);
+          }
+        });
+
+        ps.stderr.on('data', (data) => {
+          const error = data.toString().trim();
+          if (error) {
+            writeLog(`PowerShell error: ${error}`);
+          }
+        });
+
+        ps.on('error', (error) => {
+          writeLog(`Failed to start PowerShell: ${error.message}`);
+          reject(error);
+        });
+
+        ps.on('close', (code) => {
+          try {
+            // Clean up batch file
+            fs.unlinkSync(batchPath);
+          } catch (error) {
+            writeLog(`Error cleaning up batch file: ${error.message}`);
+          }
+
+          if (code === 0) {
+            writeLog('PowerShell script completed successfully');
+            app.quit();
+            resolve();
+          } else {
+            const error = `PowerShell script exited with code ${code}`;
+            writeLog(error);
+            reject(new Error(error));
+          }
+        });
+
       } catch (error) {
-        console.error("Installation error:", error);
+        writeLog(`Installation error: ${error}`);
         reject(error);
       }
     });
