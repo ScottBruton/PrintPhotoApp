@@ -6,10 +6,13 @@ const { spawn } = require("child_process");
 
 // Add logging functionality
 function writeLog(message) {
-  const logPath = path.join(app.getPath("temp"), "PrintPhotoApp-UpdateChecker.log");
+  const logPath = path.join(
+    app.getPath("temp"),
+    "PrintPhotoApp-UpdateChecker.log"
+  );
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
-  
+
   // Write to file
   fs.appendFileSync(logPath, logMessage);
   // Also log to console
@@ -29,6 +32,11 @@ class UpdateChecker {
     this.repo = "PrintPhotoApp";
     this.currentVersion = app.getVersion();
     this.abortController = null;
+    this.updateWindow = null; // Add reference to update window
+  }
+
+  setUpdateWindow(window) {
+    this.updateWindow = window;
   }
 
   cancelDownload() {
@@ -206,7 +214,18 @@ class UpdateChecker {
     return new Promise((resolve, reject) => {
       try {
         writeLog("=== Installation Process Started ===");
-        
+
+        // Prevent window from closing
+        if (this.updateWindow) {
+          this.updateWindow.removeAllListeners("close");
+
+          // Add our close prevention
+          this.updateWindow.on("close", (e) => {
+            writeLog("Preventing window close");
+            e.preventDefault();
+          });
+        }
+
         if (!fs.existsSync(installerPath)) {
           const error = `Installer not found at path: ${installerPath}`;
           writeLog(error);
@@ -215,34 +234,33 @@ class UpdateChecker {
         }
 
         const fullPath = path.resolve(installerPath);
-        const isDevMode = process.defaultApp || /[\\/]electron/i.test(process.execPath);
-        const currentInstallPath = isDevMode
-          ? process.cwd()
-          : path.dirname(app.getPath("exe"));
+        const isDevMode =
+          process.defaultApp || /[\\/]electron/i.test(process.execPath);
 
         writeLog("Installation details:");
         writeLog(`- Installer path: ${fullPath}`);
-        writeLog(`- Current install path: ${currentInstallPath}`);
         writeLog(`- Is dev mode: ${isDevMode}`);
+        writeLog(`- Parent PID: ${process.pid}`);
 
         // Copy UpdateScript.ps1 to temp directory
         const psScriptPath = path.join(app.getPath("temp"), "UpdateScript.ps1");
-        
+
         // Try different locations for the PowerShell script
         let psSourcePath;
         const possiblePaths = [
-          path.join(__dirname, "UpdateScript.ps1"), // Development
-          path.join(process.resourcesPath, "UpdateScript.ps1"), // Production
-          path.join(app.getAppPath(), "UpdateScript.ps1"), // Alternative
+          path.join(__dirname, "UpdateScript.ps1"),
+          path.join(process.resourcesPath, "UpdateScript.ps1"),
+          path.join(app.getAppPath(), "UpdateScript.ps1"),
         ];
 
         writeLog("\nSearching for UpdateScript.ps1 in:");
-        possiblePaths.forEach(p => writeLog(`- ${p}`));
-        
-        psSourcePath = possiblePaths.find(p => fs.existsSync(p));
-        
+        possiblePaths.forEach((p) => writeLog(`- ${p}`));
+
+        psSourcePath = possiblePaths.find((p) => fs.existsSync(p));
+
         if (!psSourcePath) {
-          const error = "PowerShell script not found in any of the expected locations!";
+          const error =
+            "PowerShell script not found in any of the expected locations!";
           writeLog(error);
           reject(new Error(error));
           return;
@@ -261,89 +279,87 @@ class UpdateChecker {
           return;
         }
 
-        // Verify the script was copied
-        if (!fs.existsSync(psScriptPath)) {
-          const error = "PowerShell script not found at destination after copy!";
-          writeLog(error);
-          reject(new Error(error));
-          return;
-        }
+        // Create PowerShell process
+        const ps = spawn(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            psScriptPath,
+            "-InstallerPath",
+            fullPath,
+            "-ParentPID",
+            process.pid.toString(),
+          ],
+          {
+            stdio: "pipe",
+            windowsHide: false,
+          }
+        );
 
-        // In development mode, just show what would happen
-        if (isDevMode) {
-          writeLog("\n=== Development Mode - Update Simulation ===");
-          writeLog(`Would execute PowerShell script at: ${psScriptPath}`);
-          writeLog("\nIn production:");
-          writeLog("1. App would quit");
-          writeLog("2. PowerShell script would handle the update");
-          writeLog("3. New version would start automatically");
-          writeLog("=====================================");
-          resolve();
-          return;
-        }
+        writeLog("PowerShell process started with arguments:");
+        writeLog(
+          JSON.stringify(
+            {
+              script: psScriptPath,
+              installer: fullPath,
+              pid: ps.pid,
+              parentPid: process.pid,
+            },
+            null,
+            2
+          )
+        );
 
-        // Execute PowerShell script using spawn
-        writeLog("\nLaunching PowerShell script...");
-        
-        // Create a batch file to run PowerShell elevated
-        const batchPath = path.join(app.getPath("temp"), "RunUpdate.bat");
-        const batchContent = `@echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -InstallerPath "${fullPath}"
-`;
-        
-        writeLog("Creating batch file:");
-        writeLog(batchContent);
-        fs.writeFileSync(batchPath, batchContent);
-
-        const ps = spawn('runas', [
-          '/user:Administrator',
-          `cmd.exe /c "${batchPath}"`
-        ], {
-          windowsHide: false,
-          stdio: 'pipe',
-          shell: true,
-          windowsVerbatimArguments: true
-        });
-
-        ps.stdout.on('data', (data) => {
+        // Handle PowerShell output
+        ps.stdout.on("data", (data) => {
           const output = data.toString().trim();
-          if (output) {
-            writeLog(`PowerShell output: ${output}`);
+          writeLog(`PowerShell output: ${output}`);
+          if (output.includes("SIGNAL_QUIT_APP")) {
+            writeLog("Received quit signal from PowerShell script");
+            setTimeout(() => {
+              if (this.updateWindow) {
+                writeLog("Allowing window to close");
+                this.updateWindow.canClose = true;
+                this.updateWindow.removeAllListeners("close");
+                this.updateWindow.close();
+              }
+              setTimeout(() => {
+                writeLog("Quitting application");
+                app.quit();
+              }, 500);
+            }, 1000);
           }
         });
 
-        ps.stderr.on('data', (data) => {
-          const error = data.toString().trim();
-          if (error) {
-            writeLog(`PowerShell error: ${error}`);
-          }
+        // Handle PowerShell errors
+        ps.stderr.on("data", (data) => {
+          writeLog(`PowerShell error: ${data.toString().trim()}`);
         });
 
-        ps.on('error', (error) => {
-          writeLog(`Failed to start PowerShell: ${error.message}`);
-          reject(error);
-        });
-
-        ps.on('close', (code) => {
-          try {
-            // Clean up batch file
-            fs.unlinkSync(batchPath);
-          } catch (error) {
-            writeLog(`Error cleaning up batch file: ${error.message}`);
-          }
-
+        // Handle process exit
+        ps.on("close", (code, signal) => {
+          writeLog(
+            `PowerShell process exited with code: ${code}, signal: ${signal}`
+          );
           if (code === 0) {
-            writeLog('PowerShell script completed successfully');
-            app.quit();
+            writeLog("Update process initiated successfully");
             resolve();
           } else {
-            const error = `PowerShell script exited with code ${code}`;
+            const error = `Update process failed with code ${code}`;
             writeLog(error);
+            if (this.updateWindow) {
+              this.updateWindow.removeAllListeners("close");
+            }
             reject(new Error(error));
           }
         });
-
       } catch (error) {
+        if (this.updateWindow) {
+          this.updateWindow.removeAllListeners("close");
+        }
         writeLog(`Installation error: ${error}`);
         reject(error);
       }

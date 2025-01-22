@@ -2,7 +2,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 
 // Path to the PowerShell script
-const psScriptPath = "C:\\Programming\\PrintPhotoApp\\UpdateScript.ps1";
+const psScriptPath = "C:\\Users\\bruto\\AppData\\Local\\Temp\\UpdateScript.ps1";
 const installerPath =
   "C:\\Users\\bruto\\AppData\\Local\\Temp\\PrintPhotoApp-Setup.exe";
 

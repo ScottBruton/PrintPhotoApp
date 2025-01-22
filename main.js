@@ -81,8 +81,14 @@ function createUpdateWindow() {
   });
 
   updateWindow.setAlwaysOnTop(true, "screen-saver");
-
   updateWindow.loadFile("update.html");
+
+  // Prevent window from closing by default
+  updateWindow.on("close", (e) => {
+    if (!updateWindow.canClose) {
+      e.preventDefault();
+    }
+  });
 
   updateWindow.once("ready-to-show", () => {
     console.log("Update window ready to show");
@@ -90,17 +96,19 @@ function createUpdateWindow() {
     updateWindow.focus();
   });
 
-  updateWindow.webContents.on("did-finish-load", () => {
-    console.log("Update window content loaded");
-  });
-
+  // Only allow window to be nulled when explicitly closed
   updateWindow.on("closed", () => {
     console.log("Update window closed");
-    updateWindow = null;
-    if (!mainWindow) {
-      createWindow();
+    if (updateWindow) {
+      updateWindow = null;
+      if (!mainWindow) {
+        createWindow();
+      }
     }
   });
+
+  // Pass window reference to UpdateChecker
+  updateChecker.setUpdateWindow(updateWindow);
 }
 
 // Handle save layout
@@ -182,7 +190,7 @@ ipcMain.handle("get-printers", async (event) => {
 ipcMain.handle("print", async (event, content, settings) => {
   try {
     console.log("Print settings:", settings);
-    
+
     // Create print window
     const printWindow = new BrowserWindow({
       show: false,
@@ -194,7 +202,7 @@ ipcMain.handle("print", async (event, content, settings) => {
 
     const tempPath = path.join(app.getPath("temp"), "print-content.html");
     console.log("Writing content to:", tempPath);
-    fs.writeFileSync(tempPath, content, 'utf8');
+    fs.writeFileSync(tempPath, content, "utf8");
 
     if (!fs.existsSync(tempPath)) {
       throw new Error("Failed to create temp file");
@@ -230,7 +238,8 @@ ipcMain.handle("print", async (event, content, settings) => {
       const pdfData = await printWindow.webContents.printToPDF({
         printBackground: true,
         landscape: settings.layout === "landscape",
-        pageRanges: settings.pages === "custom" ? settings.pageRanges : undefined,
+        pageRanges:
+          settings.pages === "custom" ? settings.pageRanges : undefined,
         margins: { marginType: "none" },
         dpi: settings.quality || 600,
       });
@@ -353,21 +362,21 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
     const absolutePath = path.join(app.getAppPath(), filePath);
     console.log("Printing file:", absolutePath);
-    
+
     // Create a hidden window for printing
     const printWindow = new BrowserWindow({
       show: false,
       webPreferences: {
         nodeIntegration: false,
-        contextIsolation: true
-      }
+        contextIsolation: true,
+      },
     });
 
     // Load the HTML file
     await printWindow.loadFile(absolutePath);
-    
+
     // Wait a bit for content to load
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Return a promise that resolves when printing is complete
     return new Promise((resolve) => {
@@ -382,33 +391,32 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
           landscape: false,
           scaleFactor: 100,
           copies: 1,
-          collate: true
+          collate: true,
         },
         (success, errorType) => {
           console.log("Print callback:", success, errorType);
           printWindow.close();
 
           if (success) {
-            resolve({ 
-              success: true, 
-              message: "Print job sent successfully" 
+            resolve({
+              success: true,
+              message: "Print job sent successfully",
             });
           } else {
-            resolve({ 
-              success: false, 
-              error: errorType || "Print was cancelled or failed"
+            resolve({
+              success: false,
+              error: errorType || "Print was cancelled or failed",
             });
           }
         }
       );
     });
-
   } catch (error) {
     console.error("Error in print handler:", error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.message || "Print failed",
-      details: error.toString()
+      details: error.toString(),
     };
   }
 });
