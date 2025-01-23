@@ -372,15 +372,19 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
 
 // App startup
 app.whenReady().then(async () => {
-  console.log("App ready");
-  createWindow();
-  // Fetch GitHub key and set up IPC handlers
-    // Set up the GitHub key handler
-    fetchGitHubKey(ipcMain);
+    console.log("App ready");
+    createWindow();
 
-    // Start checking for updates
-    checkForUpdates(ipcMain);
-  
+    // Only check for updates in production mode
+    if (app.isPackaged) {
+        // Wait a few seconds before checking for updates
+        setTimeout(() => {
+            // Fetch GitHub key and set up IPC handlers
+            fetchGitHubKey(ipcMain);
+            // Start checking for updates
+            checkForUpdates(ipcMain);
+        }, 3000); // Wait 3 seconds after app starts
+    }
 });
 
 app.on("window-all-closed", () => {

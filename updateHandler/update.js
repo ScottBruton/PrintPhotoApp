@@ -59,13 +59,41 @@ function fetchGitHubKey(ipcMain) {
     });
 }
 
+// Add this helper function at the top
+function logUpdateConfig(key) {
+    console.log('Update Configuration:', {
+        provider: 'github',
+        repo: 'PrintPhotoApp',
+        owner: 'ScottBruton',
+        private: true,
+        tokenLength: key ? key.length : 0,
+        isPackaged: app.isPackaged,
+        currentVersion: app.getVersion(),
+        platform: process.platform,
+        arch: process.arch
+    });
+}
+
 // Function to check for updates
 async function checkForUpdates(ipcMain) {
     console.log('Starting update check...');
     console.log('App version:', app.getVersion());
     console.log('Is packaged:', app.isPackaged);
 
-    // Configure logger
+    // Create update window first
+    createUpdateWindow();
+
+    // Add development mode warning
+    if (!app.isPackaged) {
+        console.log('Running in development mode - updates are disabled');
+        if (updateWindow) {
+            updateWindow.webContents.send('update-message', 
+                'Updates are disabled in development mode. Package the app to enable updates.');
+        }
+        return;
+    }
+
+    // Configure logger with more detail
     autoUpdater.logger = require('electron-log');
     autoUpdater.logger.transports.file.level = 'debug';
     console.log('Update log file:', autoUpdater.logger.transports.file.getFile());
@@ -73,11 +101,16 @@ async function checkForUpdates(ipcMain) {
     // Fetch the GitHub repo key dynamically
     const key = process.env.GITHUB_REPO_KEY;
     if (!key) {
-        console.error('No GitHub repo key found. Skipping update check.');
+        const error = 'No GitHub repo key found. Skipping update check.';
+        console.error(error);
+        if (updateWindow) {
+            updateWindow.webContents.send('update-message', error);
+        }
         return;
     }
 
-    console.log('GitHub repo key found:', key);
+    // Log configuration (but not the actual token)
+    logUpdateConfig(key);
 
     // Use the key directly in electron-updater
     try {
@@ -88,10 +121,14 @@ async function checkForUpdates(ipcMain) {
             owner: 'ScottBruton',
             private: true,
             token: key,
+            releaseType: 'release' // Explicitly set release type
         });
         console.log('autoUpdater configured successfully.');
     } catch (error) {
         console.error('Failed to configure autoUpdater:', error);
+        if (updateWindow) {
+            updateWindow.webContents.send('update-message', `Configuration error: ${error.message}`);
+        }
         return;
     }
 
@@ -99,10 +136,9 @@ async function checkForUpdates(ipcMain) {
     autoUpdater.autoDownload = false;
     autoUpdater.forceDevUpdateConfig = true;
 
-    // Set up event handlers
+    // Move this event handler up before checking for updates
     autoUpdater.on('checking-for-update', () => {
         console.log('Checking for updates...');
-        createUpdateWindow();
     });
 
     autoUpdater.on('update-available', (info) => {
@@ -112,18 +148,27 @@ async function checkForUpdates(ipcMain) {
         }
     });
 
-    // Handle download-update request from renderer
-    ipcMain.on('download-update', () => {
+    // Update the download handler with better error handling
+    ipcMain.on('download-update', async () => {
         console.log('Starting update download...');
         try {
-            autoUpdater.downloadUpdate().catch(error => {
-                console.error('Download error:', error);
-                if (updateWindow) {
-                    updateWindow.webContents.send('update-message', `Error: ${error.message}`);
-                }
-            });
+            // Log available releases before downloading
+            const updateCheckResult = await autoUpdater.checkForUpdates();
+            console.log('Update check result:', updateCheckResult);
+            
+            await autoUpdater.downloadUpdate();
         } catch (error) {
-            console.error('Error initiating download:', error);
+            console.error('Download error:', error);
+            let errorMessage = error.message;
+            
+            // Provide more specific error messages
+            if (error.code === 'ERR_UPDATER_ASSET_NOT_FOUND') {
+                errorMessage = 'Update package not found. Please ensure a release with assets exists in the repository.';
+            }
+            
+            if (updateWindow) {
+                updateWindow.webContents.send('update-message', `Error: ${errorMessage}`);
+            }
         }
     });
 
