@@ -31,6 +31,12 @@ function createUpdateWindow() {
     updateWindow.loadFile(path.join(__dirname, 'update.html'));
     console.log('Update window loaded.');
 
+    // Add error handling for window loading
+    updateWindow.webContents.on('did-fail-load', (error) => {
+        console.error('Failed to load update window:', error);
+    });
+
+    // Handle window close
     updateWindow.on('closed', () => {
         console.log('Update window closed.');
         updateWindow = null;
@@ -93,37 +99,40 @@ async function checkForUpdates(ipcMain) {
     autoUpdater.autoDownload = false;
     autoUpdater.forceDevUpdateConfig = true;
 
-    // Set up event handlers before checking for updates
+    // Set up event handlers
     autoUpdater.on('checking-for-update', () => {
         console.log('Checking for updates...');
-        createUpdateWindow(); // Create window when check starts
+        createUpdateWindow();
     });
 
     autoUpdater.on('update-available', (info) => {
         console.log('Update available:', info);
-
         if (updateWindow) {
-            updateWindow.webContents.send('update-message', `Update available: ${info.version}`);
+            updateWindow.webContents.send('update-available', info);
         }
+    });
 
-        dialog
-            .showMessageBox({
-                type: 'info',
-                title: 'Update Available',
-                message: `Version ${info.version} is available. Do you want to download it now?`,
-                buttons: ['Yes', 'No'],
-            })
-            .then((result) => {
-                if (result.response === 0) {
-                    console.log('User agreed to download the update.');
-                    autoUpdater.downloadUpdate();
-                } else {
-                    console.log('User declined to download the update.');
-                    if (updateWindow) {
-                        updateWindow.close();
-                    }
+    // Handle download-update request from renderer
+    ipcMain.on('download-update', () => {
+        console.log('Starting update download...');
+        try {
+            autoUpdater.downloadUpdate().catch(error => {
+                console.error('Download error:', error);
+                if (updateWindow) {
+                    updateWindow.webContents.send('update-message', `Error: ${error.message}`);
                 }
             });
+        } catch (error) {
+            console.error('Error initiating download:', error);
+        }
+    });
+
+    // Handle cancel-update request
+    ipcMain.on('cancel-update', () => {
+        console.log('Update cancelled by user');
+        if (updateWindow) {
+            updateWindow.close();
+        }
     });
 
     autoUpdater.on('update-not-available', (info) => {
@@ -169,24 +178,20 @@ async function checkForUpdates(ipcMain) {
 
     autoUpdater.on('error', (error) => {
         console.error('Error during update process:', error);
-
         if (updateWindow) {
             updateWindow.webContents.send('update-message', `Error: ${error.message}`);
-            // Close the window after a short delay on error
-            setTimeout(() => {
-                if (updateWindow) {
-                    updateWindow.close();
-                }
-            }, 5000);
         }
     });
 
-    // Check for updates
+    // Check for updates with error handling
     console.log('Triggering autoUpdater to check for updates...');
     try {
         await autoUpdater.checkForUpdates();
     } catch (error) {
         console.error('Error checking for updates:', error);
+        if (updateWindow) {
+            updateWindow.webContents.send('update-message', `Error checking for updates: ${error.message}`);
+        }
     }
 }
 

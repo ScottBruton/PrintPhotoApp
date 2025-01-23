@@ -6,5 +6,14 @@ contextBridge.exposeInMainWorld('updateAPI', {
     },
     onUpdateProgress: (callback) => {
         ipcRenderer.on('update-progress', (event, progress) => callback(progress));
+    },
+    onUpdateAvailable: (callback) => {
+        ipcRenderer.on('update-available', (event, info) => callback(info));
+    },
+    downloadUpdate: () => {
+        ipcRenderer.send('download-update');
+    },
+    cancelUpdate: () => {
+        ipcRenderer.send('cancel-update');
     }
 }); 

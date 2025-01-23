@@ -23,6 +23,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             height: 20px;
+            margin-bottom: 20px;
         }
         #progress-bar {
             width: 0%;
@@ -30,24 +31,73 @@
             background-color: #4caf50;
             border-radius: 5px;
         }
+        .button-container {
+            margin-top: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        #downloadBtn {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+        }
+        #cancelBtn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>Updating Application...</h1>
+    <h1>Application Update</h1>
     <p id="message">Checking for updates...</p>
     <div id="progress-container">
         <div id="progress-bar"></div>
     </div>
+    <div class="button-container">
+        <button id="downloadBtn" class="hidden">Download Update</button>
+        <button id="cancelBtn">Cancel</button>
+    </div>
 </body>
 <script>
-    // Listen for update messages from the main process using the exposed API
+    const downloadBtn = document.getElementById('downloadBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    
+    // Listen for update messages
     window.updateAPI.onUpdateMessage((message) => {
         document.getElementById('message').innerText = message;
     });
 
+    // Listen for update available
+    window.updateAPI.onUpdateAvailable((info) => {
+        document.getElementById('message').innerText = `Version ${info.version} is available. Would you like to download it?`;
+        downloadBtn.classList.remove('hidden');
+    });
+
+    // Listen for progress updates
     window.updateAPI.onUpdateProgress((progress) => {
         const progressBar = document.getElementById('progress-bar');
         progressBar.style.width = `${progress}%`;
+    });
+
+    // Download button handler
+    downloadBtn.addEventListener('click', () => {
+        window.updateAPI.downloadUpdate();
+        downloadBtn.classList.add('hidden');
+        document.getElementById('message').innerText = 'Downloading update...';
+    });
+
+    // Cancel button handler
+    cancelBtn.addEventListener('click', () => {
+        window.updateAPI.cancelUpdate();
     });
 </script>
 </html>
