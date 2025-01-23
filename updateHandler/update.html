@@ -40,14 +40,12 @@
     </div>
 </body>
 <script>
-    // Listen for update messages from the main process
-    const { ipcRenderer } = require('electron');
-
-    ipcRenderer.on('update-message', (event, message) => {
+    // Listen for update messages from the main process using the exposed API
+    window.updateAPI.onUpdateMessage((message) => {
         document.getElementById('message').innerText = message;
     });
 
-    ipcRenderer.on('update-progress', (event, progress) => {
+    window.updateAPI.onUpdateProgress((progress) => {
         const progressBar = document.getElementById('progress-bar');
         progressBar.style.width = `${progress}%`;
     });
