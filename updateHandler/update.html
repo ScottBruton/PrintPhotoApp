@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Update Progress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #message {
+            margin-bottom: 20px;
+        }
+        #progress-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            height: 20px;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Updating Application...</h1>
+    <p id="message">Checking for updates...</p>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+</body>
+<script>
+    // Listen for update messages from the main process
+    const { ipcRenderer } = require('electron');
+
+    ipcRenderer.on('update-message', (event, message) => {
+        document.getElementById('message').innerText = message;
+    });
+
+    ipcRenderer.on('update-progress', (event, progress) => {
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.style.width = `${progress}%`;
+    });
+</script>
+</html>

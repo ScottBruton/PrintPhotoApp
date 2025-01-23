@@ -10,14 +10,11 @@ contextBridge.exposeInMainWorld("electron", {
   invoke: (channel, data) => {
     console.log("IPC invoke called:", channel, data);
     const validChannels = [
-      "check-for-updates",
-      "download-update",
-      "install-update",
       "restart-app",
       "save-temp-html",
       "save-layout",
       "load-layout",
-      "cancel-download",
+   
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
@@ -50,12 +47,12 @@ contextBridge.exposeInMainWorld("electron", {
   saveLayout: (layoutData) => ipcRenderer.invoke("save-layout", layoutData),
   loadLayout: () => ipcRenderer.invoke("load-layout"),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  getGitHubRepoKey: () => ipcRenderer.invoke('get-github-repo-key'),
   removeAllListeners: (channel) => {
     const validChannels = ["download-progress"];
     if (validChannels.includes(channel)) {
       ipcRenderer.removeAllListeners(channel);
     }
   },
-  cancelDownload: () => ipcRenderer.invoke("cancel-download"),
-  isDevMode: () => isDevMode,
+
 });

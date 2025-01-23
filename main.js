@@ -5,11 +5,12 @@ const { exec } = require("child_process");
 const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
-const UpdateChecker = require("./update-checker");
+require('dotenv').config();
 const os = require("os");
 const { jsPDF } = require("jspdf");
 const html2canvas = require("html2canvas");
 const { setupIpcHandlers } = require("./electron-utils");
+const { checkForUpdates, fetchGitHubKey } = require('./updateHandler/update.js');
 
 // Setup IPC handlers
 setupIpcHandlers();
@@ -27,7 +28,6 @@ try {
 
 // Store mainWindow reference
 let mainWindow = null;
-let updateWindow = null;
 
 function createWindow() {
   console.log("Creating main window...");
@@ -58,58 +58,7 @@ function createWindow() {
   });
 }
 
-function createUpdateWindow() {
-  console.log("Creating update window...");
-  updateWindow = new BrowserWindow({
-    width: 400,
-    height: 200,
-    frame: false,
-    resizable: false,
-    alwaysOnTop: true,
-    modal: true,
-    show: false,
-    center: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
-    },
-    movable: true,
-    titleBarStyle: "hidden",
-    parent: mainWindow,
-    focusable: true,
-  });
-
-  updateWindow.setAlwaysOnTop(true, "screen-saver");
-  updateWindow.loadFile("update.html");
-
-  // Prevent window from closing by default
-  updateWindow.on("close", (e) => {
-    if (!updateWindow.canClose) {
-      e.preventDefault();
-    }
-  });
-
-  updateWindow.once("ready-to-show", () => {
-    console.log("Update window ready to show");
-    updateWindow.show();
-    updateWindow.focus();
-  });
-
-  // Only allow window to be nulled when explicitly closed
-  updateWindow.on("closed", () => {
-    console.log("Update window closed");
-    if (updateWindow) {
-      updateWindow = null;
-      if (!mainWindow) {
-        createWindow();
-      }
-    }
-  });
-
-  // Pass window reference to UpdateChecker
-  updateChecker.setUpdateWindow(updateWindow);
-}
+// Handle IPC call to send the GitHub key
 
 // Handle save layout
 ipcMain.handle("save-layout", async (event, layoutData) => {
@@ -424,7 +373,14 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
 // App startup
 app.whenReady().then(async () => {
   console.log("App ready");
-  createUpdateWindow();
+  createWindow();
+  // Fetch GitHub key and set up IPC handlers
+    // Set up the GitHub key handler
+    fetchGitHubKey(ipcMain);
+
+    // Start checking for updates
+    checkForUpdates(ipcMain);
+  
 });
 
 app.on("window-all-closed", () => {
@@ -499,61 +455,6 @@ ipcMain.handle("save-print-pdf", async (event, { path: filePath, data }) => {
   }
 });
 
-// Keep the detailed handlers at the end
-const updateChecker = new UpdateChecker();
-
-// Add IPC handlers for updates
-ipcMain.handle("check-for-updates", async () => {
-  console.log("Received check-for-updates request");
-  try {
-    const result = await updateChecker.checkForUpdates();
-    console.log("Update check result:", result);
-    return result;
-  } catch (error) {
-    console.error("Update check error:", error);
-    return { error: error.message };
-  }
-});
-
-ipcMain.handle("download-update", async (event, downloadUrl) => {
-  console.log("Received download-update request for URL:", downloadUrl);
-  try {
-    const installerPath = await updateChecker.downloadUpdate(
-      downloadUrl,
-      (progress) => {
-        console.log("Download progress:", progress);
-        event.sender.send("download-progress", progress);
-      }
-    );
-
-    return { cancelled: false, installerPath };
-  } catch (error) {
-    if (error.name === "DownloadCancelledError") {
-      console.log("Download was cancelled by user");
-      return { cancelled: true };
-    }
-    console.error("Download error:", error);
-    throw error;
-  }
-});
-
-function closeAllWindows() {
-  if (updateWindow) updateWindow.destroy();
-  if (mainWindow) mainWindow.destroy();
-}
-
-ipcMain.handle("install-update", async (event, installerPath) => {
-  console.log("Received install-update request for path:", installerPath);
-  try {
-    closeAllWindows(); // Close all windows before installing
-    await updateChecker.installUpdate(installerPath);
-    return true;
-  } catch (error) {
-    console.error("Install error:", error);
-    throw error;
-  }
-});
-
 ipcMain.handle("restart-app", () => {
   console.log("Restarting app...");
   app.relaunch();
@@ -563,10 +464,4 @@ ipcMain.handle("restart-app", () => {
 // Add this with your other ipcMain handlers
 ipcMain.handle("get-app-version", () => {
   return app.getVersion();
-});
-
-ipcMain.handle("cancel-download", () => {
-  console.log("User cancelled download");
-  updateChecker.cancelDownload();
-  return { success: true };
 });
