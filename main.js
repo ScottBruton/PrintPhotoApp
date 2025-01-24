@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -5,7 +6,6 @@ const { exec } = require("child_process");
 const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
-require('dotenv').config();
 const os = require("os");
 const { jsPDF } = require("jspdf");
 const html2canvas = require("html2canvas");

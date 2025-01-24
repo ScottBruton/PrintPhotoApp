@@ -1,6 +1,16 @@
 const { autoUpdater } = require('electron-updater');
 const { dialog, BrowserWindow, app } = require('electron');
 const path = require('path');
+const log = require('electron-log');
+const os = require('os');
+
+// Configure logging
+log.transports.file.resolvePathFn = () => path.join(os.tmpdir(), 'PrintPhotoApp.log');
+log.transports.file.level = 'debug';
+console.log = log.log;
+console.error = log.error;
+console.warn = log.warn;
+console.info = log.info;
 
 let updateWindow = null;
 
@@ -76,16 +86,16 @@ function logUpdateConfig(key) {
 
 // Function to check for updates
 async function checkForUpdates(ipcMain) {
-    console.log('Starting update check...');
-    console.log('App version:', app.getVersion());
-    console.log('Is packaged:', app.isPackaged);
+    log.info('Starting update check...');
+    log.info('App version:', app.getVersion());
+    log.info('Is packaged:', app.isPackaged);
 
     // Create update window first
     createUpdateWindow();
 
     // Add development mode warning
     if (!app.isPackaged) {
-        console.log('Running in development mode - updates are disabled');
+        log.info('Running in development mode - updates are disabled');
         if (updateWindow) {
             updateWindow.webContents.send('update-message', 
                 'Updates are disabled in development mode. Package the app to enable updates.');
@@ -93,39 +103,23 @@ async function checkForUpdates(ipcMain) {
         return;
     }
 
-    // Configure logger with more detail
-    autoUpdater.logger = require('electron-log');
-    autoUpdater.logger.transports.file.level = 'debug';
-    console.log('Update log file:', autoUpdater.logger.transports.file.getFile());
+    // Configure autoUpdater logger
+    autoUpdater.logger = log;
+    log.info('Update log file:', log.transports.file.getFile());
 
-    // Fetch the GitHub repo key dynamically
-    const key = process.env.GITHUB_REPO_KEY;
-    if (!key) {
-        const error = 'No GitHub repo key found. Skipping update check.';
-        console.error(error);
-        if (updateWindow) {
-            updateWindow.webContents.send('update-message', error);
-        }
-        return;
-    }
-
-    // Log configuration (but not the actual token)
-    logUpdateConfig(key);
-
-    // Use the key directly in electron-updater
+    // Configure GitHub token for updates
     try {
-        console.log('Configuring autoUpdater with GitHub repo details...');
+        log.info('Configuring autoUpdater with GitHub repo details...');
         autoUpdater.setFeedURL({
             provider: 'github',
             repo: 'PrintPhotoApp',
             owner: 'ScottBruton',
             private: true,
-            token: key,
-            releaseType: 'release' // Explicitly set release type
+            token: process.env.GITHUB_REPO_KEY
         });
-        console.log('autoUpdater configured successfully.');
+        log.info('autoUpdater configured successfully.');
     } catch (error) {
-        console.error('Failed to configure autoUpdater:', error);
+        log.error('Failed to configure autoUpdater:', error);
         if (updateWindow) {
             updateWindow.webContents.send('update-message', `Configuration error: ${error.message}`);
         }

@@ -1,6 +1,6 @@
 {
   "name": "printphotoapp",
-  "version": "1.0.0",
+  "version": "v1.0.0",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -8,7 +8,7 @@
     "dev": "nodemon --watch * --exec \"npx electron .\"",
     "dev-reload": "npx electron . --dev-reload",
     "build": "electron-builder",
-    "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win portable', {stdio: 'inherit'});\""
+    "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win nsis', {stdio: 'inherit'});\""
   },
   "repository": {
     "type": "git",
@@ -35,7 +35,6 @@
   "build": {
     "appId": "com.scottbruton.printphotoapp",
     "productName": "PrintPhotoApp",
-    "artifactName": "${productName}-Setup-${version}.exe",
     "asar": true,
     "forceCodeSigning": false,
     "files": [
