@@ -211,7 +211,7 @@ async function checkForUpdates(ipcMain) {
             })
             .then(() => {
                 console.log('Restarting application to apply the update...');
-                autoUpdater.quitAndInstall();
+                autoUpdater.quitAndInstall(true,true);
             });
     });
 
