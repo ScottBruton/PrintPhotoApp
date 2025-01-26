@@ -91,6 +91,8 @@
     // Download button handler
     downloadBtn.addEventListener('click', () => {
         window.updateAPI.downloadUpdate();
+        downloadBtn.disabled = true;
+        downloadBtn.style.backgroundColor = '#cccccc';
         downloadBtn.classList.add('hidden');
         document.getElementById('message').innerText = 'Downloading update...';
     });

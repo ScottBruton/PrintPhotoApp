@@ -202,17 +202,11 @@ async function checkForUpdates(ipcMain) {
             updateWindow.webContents.send('update-message', 'Update downloaded. Restarting...');
         }
 
-        dialog
-            .showMessageBox({
-                type: 'info',
-                title: 'Update Ready',
-                message: 'The update has been downloaded. The application will restart to apply the update.',
-                buttons: ['Restart Now'],
-            })
-            .then(() => {
-                console.log('Restarting application to apply the update...');
-                autoUpdater.quitAndInstall(true,true);
-            });
+        // Wait a short moment to let the user see the message, then restart
+        setTimeout(() => {
+            console.log('Restarting application to apply the update...');
+            autoUpdater.quitAndInstall(true, true);
+        }, 2000);
     });
 
     autoUpdater.on('error', (error) => {
