@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Update Progress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #message {
+            margin-bottom: 20px;
+        }
+        #progress-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            height: 20px;
+            margin-bottom: 20px;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 5px;
+        }
+        .button-container {
+            margin-top: 20px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        #downloadBtn {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+        }
+        #cancelBtn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+        }
+        .hidden {
+            display: none;
+        }
+        .stats-container {
+            position: fixed;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .total-size {
+            /* Blue circle area */
+            text-align: left;
+        }
+        
+        .progress-percent {
+            /* Center area */
+            text-align: center;
+        }
+        
+        .download-speed {
+            /* Red circle area */
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <h1>Application Update</h1>
+    <p id="message">Checking for updates...</p>
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <div class="button-container">
+        <button id="downloadBtn" class="hidden">Download Update</button>
+        <button id="cancelBtn">Cancel</button>
+    </div>
+    <div class="stats-container">
+        <div id="total-size" class="total-size">Total: 0 MB</div>
+        <div id="progress-percent" class="progress-percent">0%</div>
+        <div id="download-speed" class="download-speed">0 KB/s</div>
+    </div>
+</body>
+<script>
+    const downloadBtn = document.getElementById('downloadBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    
+    // Listen for update messages
+    window.updateAPI.onUpdateMessage((message) => {
+        document.getElementById('message').innerText = message;
+    });
+
+    // Listen for update available
+    window.updateAPI.onUpdateAvailable((info) => {
+        document.getElementById('message').innerText = `Version ${info.version} is available. Would you like to download it?`;
+        downloadBtn.classList.remove('hidden');
+    });
+
+    // Helper function to format bytes to human readable format
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
+
+    // Listen for progress updates with detailed information
+    window.updateAPI.onUpdateProgress((progressInfo) => {
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const totalSize = document.getElementById('total-size');
+        const downloadSpeed = document.getElementById('download-speed');
+
+        // Update progress bar
+        progressBar.style.width = `${progressInfo.percent}%`;
+        
+        // Update percentage
+        progressPercent.textContent = `${Math.floor(progressInfo.percent)}%`;
+        
+        // Update total size
+        totalSize.textContent = `Total: ${formatBytes(progressInfo.total)}`;
+        
+        // Update download speed
+        downloadSpeed.textContent = `${formatBytes(progressInfo.bytesPerSecond)}/s`;
+    });
+
+    // Download button handler
+    downloadBtn.addEventListener('click', () => {
+        window.updateAPI.downloadUpdate();
+        downloadBtn.disabled = true;
+        downloadBtn.style.backgroundColor = '#cccccc';
+        downloadBtn.classList.add('hidden');
+        document.getElementById('message').innerText = 'Downloading update...';
+    });
+
+    // Cancel button handler
+    cancelBtn.addEventListener('click', () => {
+        window.updateAPI.cancelUpdate();
+    });
+</script>
+</html>

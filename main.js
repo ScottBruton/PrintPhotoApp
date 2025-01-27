@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -5,11 +6,11 @@ const { exec } = require("child_process");
 const util = require("util");
 const execPromise = util.promisify(exec);
 const { spawn } = require("child_process");
-const UpdateChecker = require("./update-checker");
-const os = require('os');
-const { jsPDF } = require('jspdf');
-const html2canvas = require('html2canvas');
-const { setupIpcHandlers } = require('./electron-utils');
+const os = require("os");
+const { jsPDF } = require("jspdf");
+const html2canvas = require("html2canvas");
+const { setupIpcHandlers } = require("./electron-utils");
+const { checkForUpdates, fetchGitHubKey, isUpdateAvailable } = require('./updateHandler/update.js');
 
 // Setup IPC handlers
 setupIpcHandlers();
@@ -27,7 +28,6 @@ try {
 
 // Store mainWindow reference
 let mainWindow = null;
-let updateWindow = null;
 
 function createWindow() {
   console.log("Creating main window...");
@@ -45,7 +45,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile("index.html");
-  
+
   // Wait for window to be ready
   mainWindow.webContents.on("did-finish-load", () => {
     console.log("Main window loaded and ready");
@@ -58,40 +58,7 @@ function createWindow() {
   });
 }
 
-function createUpdateWindow() {
-  console.log("Creating update window...");
-  updateWindow = new BrowserWindow({
-    width: 400,
-    height: 200,
-    frame: false,
-    resizable: false,
-    alwaysOnTop: true,
-    modal: true,
-    show: false,
-    center: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, "preload.js"),
-    },
-  });
-
-  updateWindow.loadFile("update.html");
-  
-  updateWindow.once('ready-to-show', () => {
-    console.log("Update window ready to show");
-    updateWindow.show();
-  });
-
-  updateWindow.webContents.on('did-finish-load', () => {
-    console.log("Update window content loaded");
-  });
-
-  updateWindow.on('closed', () => {
-    console.log("Update window closed");
-    updateWindow = null;
-  });
-}
+// Handle IPC call to send the GitHub key
 
 // Handle save layout
 ipcMain.handle("save-layout", async (event, layoutData) => {
@@ -172,6 +139,8 @@ ipcMain.handle("get-printers", async (event) => {
 ipcMain.handle("print", async (event, content, settings) => {
   try {
     console.log("Print settings:", settings);
+
+    // Create print window
     const printWindow = new BrowserWindow({
       show: false,
       webPreferences: {
@@ -180,41 +149,29 @@ ipcMain.handle("print", async (event, content, settings) => {
       },
     });
 
-    // Create a temporary HTML file
     const tempPath = path.join(app.getPath("temp"), "print-content.html");
-    fs.writeFileSync(tempPath, content);
+    console.log("Writing content to:", tempPath);
+    fs.writeFileSync(tempPath, content, "utf8");
+
+    if (!fs.existsSync(tempPath)) {
+      throw new Error("Failed to create temp file");
+    }
+
+    // Load the content into the window
     await printWindow.loadFile(tempPath);
 
     // Handle Test Printer
     if (settings.printer === "Test Printer") {
       console.log("\n=== TEST PRINTER DEBUG INFO ===");
-      console.log("Print settings:", {
-        printer: settings.printer,
-        copies: settings.copies,
-        layout: settings.layout,
-        pages: settings.pages,
-        pageRanges: settings.pageRanges,
-        quality: settings.quality,
-        paperType: settings.paperType,
-      });
-      console.log("Paper size: A4");
-      console.log("DPI:", settings.quality);
-      console.log("Paper Type:", settings.paperType);
-      console.log("=== END DEBUG INFO ===\n");
-
-      // Simulate printing delay
+      console.log("Print settings:", settings);
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
       printWindow.close();
       fs.unlinkSync(tempPath);
-      return true; // Return true to indicate success
+      return true;
     }
 
     // Handle PDF printing
     if (settings.printer === "Save as PDF") {
-      // Close print window before showing save dialog
-      printWindow.close();
-
       const { filePath } = await dialog.showSaveDialog({
         title: "Save PDF",
         defaultPath: path.join(app.getPath("documents"), "print-output.pdf"),
@@ -222,33 +179,22 @@ ipcMain.handle("print", async (event, content, settings) => {
       });
 
       if (!filePath) {
+        printWindow.close();
+        fs.unlinkSync(tempPath);
         return false;
       }
 
-      // Create a new window for PDF generation
-      const pdfWindow = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-        },
-      });
-
-      await pdfWindow.loadFile(tempPath);
-      const pdfData = await pdfWindow.webContents.printToPDF({
+      const pdfData = await printWindow.webContents.printToPDF({
         printBackground: true,
         landscape: settings.layout === "landscape",
         pageRanges:
           settings.pages === "custom" ? settings.pageRanges : undefined,
-        margins: {
-          marginType: "none",
-        },
+        margins: { marginType: "none" },
         dpi: settings.quality || 600,
-        resolution: settings.quality || 600,
       });
 
       fs.writeFileSync(filePath, pdfData);
-      pdfWindow.close();
+      printWindow.close();
       fs.unlinkSync(tempPath);
       return true;
     }
@@ -363,65 +309,94 @@ ipcMain.handle("win-set-default-printer", async (event, printerName) => {
 
 ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
-    // Validate inputs
-    if (!filePath || !printerName) {
-      throw new Error("Missing required parameters");
-    }
+    const absolutePath = path.join(app.getAppPath(), filePath);
+    console.log("Printing file:", absolutePath);
 
-    const pythonProcess = spawn("python", [
-      "print_handler.py",
-      "print",
-      filePath,
-      printerName,
-    ]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
+    // Create a hidden window for printing
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
     });
-    return JSON.parse(result);
+
+    // Load the HTML file
+    await printWindow.loadFile(absolutePath);
+
+    // Wait a bit for content to load
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Return a promise that resolves when printing is complete
+    return new Promise((resolve) => {
+      printWindow.webContents.print(
+        {
+          silent: false,
+          printBackground: true,
+          deviceName: printerName,
+          color: true,
+          margins: { marginType: "none" },
+          pageSize: "A4",
+          landscape: false,
+          scaleFactor: 100,
+          copies: 1,
+          collate: true,
+        },
+        (success, errorType) => {
+          console.log("Print callback:", success, errorType);
+          printWindow.close();
+
+          if (success) {
+            resolve({
+              success: true,
+              message: "Print job sent successfully",
+            });
+          } else {
+            resolve({
+              success: false,
+              error: errorType || "Print was cancelled or failed",
+            });
+          }
+        }
+      );
+    });
   } catch (error) {
-    console.error("Error printing file:", error);
-    return { success: false, error: error.message };
+    console.error("Error in print handler:", error);
+    return {
+      success: false,
+      error: error.message || "Print failed",
+      details: error.toString(),
+    };
   }
 });
 
 // App startup
 app.whenReady().then(async () => {
-  console.log("App ready");
-  
-  // Create update window first and wait for it to be ready
-  createUpdateWindow();
-  await new Promise(resolve => {
-    updateWindow.once('ready-to-show', () => {
-      console.log("Update window ready");
-      updateWindow.show();
-      resolve();
-    });
-  });
-  
-  // Create main window after update window is ready
-  createWindow();
+    console.log("App ready");
+    const updateAvailable = await isUpdateAvailable();
+    if (updateAvailable) {
+        // Only check for updates in production mode
+        if (app.isPackaged) {
+            // Wait a few seconds before checking for updates
+            setTimeout(() => {
+                // Fetch GitHub key and set up IPC handlers
+                fetchGitHubKey(ipcMain);
+                // Start checking for updates and pass createWindow as callback
+                checkForUpdates(ipcMain, createWindow);
+            }, 3000); // Wait 3 seconds after app starts
+        }
+    } else {
+        createWindow();
+    }
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
@@ -432,35 +407,40 @@ ipcMain.handle("create-temp-pdf", async (event, htmlContent) => {
   try {
     const timestamp = new Date().getTime();
     const tempPath = path.join(os.tmpdir(), `print_${timestamp}.pdf`);
-    
+
     // Create PDF
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      hotfixes: ['px_scaling']
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      hotfixes: ["px_scaling"],
     });
 
     // Convert HTML content to PDF
-    const dataUrl = await event.sender.webContents.capturePage().then(image => {
-      return image.toDataURL();
-    });
+    const dataUrl = await event.sender.webContents
+      .capturePage()
+      .then((image) => {
+        return image.toDataURL();
+      });
 
     // Add image to PDF
     pdf.addImage(
       dataUrl,
-      'PNG',
+      "PNG",
       0,
       0,
       pdf.internal.pageSize.getWidth(),
       pdf.internal.pageSize.getHeight(),
       undefined,
-      'FAST'
+      "FAST"
     );
 
     // Save PDF
-    await fs.promises.writeFile(tempPath, Buffer.from(pdf.output('arraybuffer')));
-    
+    await fs.promises.writeFile(
+      tempPath,
+      Buffer.from(pdf.output("arraybuffer"))
+    );
+
     return tempPath;
   } catch (error) {
     console.error("Error creating PDF:", error);
@@ -469,61 +449,26 @@ ipcMain.handle("create-temp-pdf", async (event, htmlContent) => {
 });
 
 ipcMain.handle("get-temp-file", async (event, filename) => {
-    return path.join(os.tmpdir(), filename);
+  return path.join(os.tmpdir(), filename);
 });
 
 ipcMain.handle("save-print-pdf", async (event, { path: filePath, data }) => {
-    try {
-        await fs.promises.writeFile(filePath, Buffer.from(data));
-        return { success: true };
-    } catch (error) {
-        console.error("Error saving PDF:", error);
-        return { success: false, error: error.message };
-    }
-});
-
-// Keep the detailed handlers at the end
-const updateChecker = new UpdateChecker();
-
-// Add IPC handlers for updates
-ipcMain.handle('check-for-updates', async () => {
-  console.log("Received check-for-updates request");
   try {
-    const result = await updateChecker.checkForUpdates();
-    console.log("Update check result:", result);
-    return result;
+    await fs.promises.writeFile(filePath, Buffer.from(data));
+    return { success: true };
   } catch (error) {
-    console.error("Update check error:", error);
-    return { error: error.message };
+    console.error("Error saving PDF:", error);
+    return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('download-update', async (event, downloadUrl) => {
-  console.log("Received download-update request for URL:", downloadUrl);
-  try {
-    return await updateChecker.downloadUpdate(downloadUrl, (progress) => {
-      console.log("Download progress:", progress);
-      event.sender.send('download-progress', progress);
-    });
-  } catch (error) {
-    console.error("Download error:", error);
-    throw error;
-  }
-});
-
-ipcMain.handle('install-update', async (event, installerPath) => {
-  console.log("Received install-update request for path:", installerPath);
-  try {
-    await updateChecker.installUpdate(installerPath);
-    return true;
-  } catch (error) {
-    console.error("Install error:", error);
-    throw error;
-  }
-});
-
-ipcMain.handle('restart-app', () => {
+ipcMain.handle("restart-app", () => {
   console.log("Restarting app...");
   app.relaunch();
   app.exit();
+});
+
+// Add this with your other ipcMain handlers
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
 });

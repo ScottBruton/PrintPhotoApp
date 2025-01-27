@@ -1,26 +1,61 @@
 {
   "name": "printphotoapp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron .",
-    "dev": "nodemon --watch * --exec \"electron .\"",
-    "dev-reload": "electron . --dev-reload"
+    "start": "npx electron .",
+    "dev": "nodemon --watch * --exec \"npx electron .\"",
+    "dev-reload": "npx electron . --dev-reload",
+    "build": "electron-builder",
+    "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win nsis', {stdio: 'inherit'});\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ScottBruton/PrintPhotoApp.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "A photo printing application",
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
     "electron-reloader": "^1.2.3",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.0"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
+    "electron-log": "^5.2.4",
     "electron-updater": "^6.3.9",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
-    "simple-git": "^3.27.0"
+    "jspdf": "^2.5.1"
+  },
+  "build": {
+    "appId": "com.scottbruton.printphotoapp",
+    "productName": "PrintPhotoApp",
+    "asar": true,
+    "forceCodeSigning": false,
+    "files": [
+      "**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "asset/scoBroPrints.ico",
+      "signAndEditExecutable": false,
+      "publish": ["github"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PrintPhotoApp",
+      "perMachine": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": ["github"],
+    "generateUpdatesFilesForAllChannels": true
   }
 }

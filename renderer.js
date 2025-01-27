@@ -1,4 +1,4 @@
-import layout from './layoutRenderer.js';
+import layout from "./layoutRenderer.js";
 // SessionStateManager to handle all session data
 class SessionStateManager {
   constructor() {
@@ -176,6 +176,20 @@ class PhotoLayoutEditor {
     this.bindEvents();
     // Make the instance globally available
     window.rendererInstance = this;
+    // Add version display
+    this.displayAppVersion();
+  }
+
+  async displayAppVersion() {
+    try {
+      const version = await window.electron.getAppVersion();
+      const versionElement = document.getElementById("app-version");
+      if (versionElement) {
+        versionElement.textContent = `v${version}`;
+      }
+    } catch (error) {
+      console.error("Error getting app version:", error);
+    }
   }
 
   initializeElements() {
@@ -647,7 +661,7 @@ class PhotoLayoutEditor {
     const pageNumber = this.sessionManager.sessionData.currentPage + 1;
     const cardId = placeholder.id;
     const card = this.sessionManager.getCard(pageNumber, cardId);
-    
+
     if (!card) return;
 
     // Create image container
@@ -674,7 +688,7 @@ class PhotoLayoutEditor {
       rotation: 0,
       zoom: 100,
       translateX: 0,
-      translateY: 0
+      translateY: 0,
     };
 
     // Apply image settings
@@ -687,7 +701,9 @@ class PhotoLayoutEditor {
     transform.push("translate(-50%, -50%)"); // Center the image
 
     if (settings.translateX || settings.translateY) {
-      transform.push(`translate(${settings.translateX}px, ${settings.translateY}px)`);
+      transform.push(
+        `translate(${settings.translateX}px, ${settings.translateY}px)`
+      );
     }
 
     if (settings.rotation) {
@@ -774,7 +790,10 @@ class PhotoLayoutEditor {
 
   navigatePage(direction) {
     const newPage = this.sessionManager.sessionData.currentPage + direction;
-    if (newPage >= 0 && newPage < this.sessionManager.sessionData.pages.length) {
+    if (
+      newPage >= 0 &&
+      newPage < this.sessionManager.sessionData.pages.length
+    ) {
       this.sessionManager.sessionData.currentPage = newPage;
       this.updatePageIndicator();
 
@@ -795,7 +814,9 @@ class PhotoLayoutEditor {
         this.pageContainer.appendChild(deleteBtn);
 
         // Recreate the layout with the page's size
-        const [width, height] = currentPage.pageSize.split("x").map((n) => parseInt(n));
+        const [width, height] = currentPage.pageSize
+          .split("x")
+          .map((n) => parseInt(n));
         const PAGE_WIDTH = 210;
         const PAGE_HEIGHT = 297;
         const MARGIN = 5;
@@ -805,14 +826,16 @@ class PhotoLayoutEditor {
         const availableHeight = PAGE_HEIGHT - 2 * MARGIN;
 
         const cols = Math.floor((availableWidth + SPACING) / (width + SPACING));
-        const rows = Math.floor((availableHeight + SPACING) / (height + SPACING));
+        const rows = Math.floor(
+          (availableHeight + SPACING) / (height + SPACING)
+        );
 
         // Get the latest cards with their settings from the session manager
         const latestCards = this.sessionManager.getPageCards(newPage + 1);
-        console.log('During page navigation - Latest cards:', {
+        console.log("During page navigation - Latest cards:", {
           pageNumber: newPage + 1,
           latestCards,
-          currentPageCards: currentPage.cards
+          currentPageCards: currentPage.cards,
         });
         if (latestCards) {
           currentPage.cards = latestCards;
@@ -885,28 +908,32 @@ class PhotoLayoutEditor {
         version: "1.0", // For future compatibility
         timestamp: new Date().toISOString(),
         sessionData: {
-          pages: this.sessionManager.sessionData.pages.map(page => ({
+          pages: this.sessionManager.sessionData.pages.map((page) => ({
             ...page,
-            cards: page.cards.map(card => ({
+            cards: page.cards.map((card) => ({
               ...card,
               // Ensure we save all necessary card data
               position: { ...card.position },
               size: { ...card.size },
-              image: card.image ? {
-                ...card.image,
-                // Keep the image data
-                src: card.image.src
-              } : null,
-              imageSettings: card.imageSettings ? {
-                ...card.imageSettings
-              } : null
-            }))
+              image: card.image
+                ? {
+                    ...card.image,
+                    // Keep the image data
+                    src: card.image.src,
+                  }
+                : null,
+              imageSettings: card.imageSettings
+                ? {
+                    ...card.imageSettings,
+                  }
+                : null,
+            })),
           })),
-          currentPage: this.sessionManager.sessionData.currentPage
+          currentPage: this.sessionManager.sessionData.currentPage,
         },
         // Save history for undo/redo functionality
         history: this.sessionManager.history,
-        currentHistoryIndex: this.sessionManager.currentHistoryIndex
+        currentHistoryIndex: this.sessionManager.currentHistoryIndex,
       };
 
       const result = await window.electron.invoke("save-layout", layoutData);
@@ -928,28 +955,34 @@ class PhotoLayoutEditor {
       if (layoutData) {
         // Validate version compatibility if needed
         if (layoutData.version && layoutData.version !== "1.0") {
-          console.warn("Loading layout from different version:", layoutData.version);
+          console.warn(
+            "Loading layout from different version:",
+            layoutData.version
+          );
         }
 
         // Restore session state
         this.sessionManager.loadSessionState(layoutData.sessionData);
-        
+
         // Restore history if available
         if (layoutData.history) {
           this.sessionManager.history = layoutData.history;
-          this.sessionManager.currentHistoryIndex = layoutData.currentHistoryIndex;
+          this.sessionManager.currentHistoryIndex =
+            layoutData.currentHistoryIndex;
         }
 
         // Update the UI
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
         this.updatePageIndicator();
         this.navigatePage(0); // Refresh current page view
-        
+
         alert("Layout loaded successfully!");
       }
     } catch (error) {
       console.error("Error loading layout:", error);
-      alert("Failed to load layout. The file might be corrupted or in an incompatible format.");
+      alert(
+        "Failed to load layout. The file might be corrupted or in an incompatible format."
+      );
     }
   }
 
@@ -1046,7 +1079,7 @@ class PhotoLayoutEditor {
 
   async showPrintPreview() {
     console.log("=== Starting Print Preview ===");
-    
+
     // Create a new PrintManager instance if it doesn't exist
     if (!this.printManager) {
       console.log("Creating new PrintManager instance");
@@ -1074,11 +1107,11 @@ class PhotoLayoutEditor {
     const placeholder = container.closest(".photo-placeholder");
     const cardId = placeholder.id;
     const pageNumber = this.sessionManager.sessionData.currentPage + 1;
-    
+
     // Get current settings from session state
     const card = this.sessionManager.getCard(pageNumber, cardId);
-    if (!card) return;  // Safety check
-    
+    if (!card) return; // Safety check
+
     // Use card's size directly
     const previewWidth = card.size.width;
     const previewHeight = card.size.height;
@@ -1097,9 +1130,8 @@ class PhotoLayoutEditor {
     const history = [];
     let historyIndex = -1;
 
-    preview.width = previewWidth
-    preview.height = previewHeight
-
+    preview.width = previewWidth;
+    preview.height = previewHeight;
 
     preview.innerHTML = "";
     const previewContainer = document.createElement("div");
@@ -1114,17 +1146,17 @@ class PhotoLayoutEditor {
     imgClone.style.position = "absolute";
     imgClone.style.left = "50%";
     imgClone.style.top = "50%";
-    
+
     // Set initial image dimensions based on container and image aspect ratios
     const containerAspect = card.size.width / card.size.height;
     const imageAspect = card.image.originalWidth / card.image.originalHeight;
-    
+
     if (containerAspect > imageAspect) {
-        imgClone.style.width = "auto";
-        imgClone.style.height = "100%";
+      imgClone.style.width = "auto";
+      imgClone.style.height = "100%";
     } else {
-        imgClone.style.width = "100%";
-        imgClone.style.height = "auto";
+      imgClone.style.width = "100%";
+      imgClone.style.height = "auto";
     }
 
     previewContainer.appendChild(imgClone);
@@ -1205,7 +1237,7 @@ class PhotoLayoutEditor {
         fit: "contain",
         objectFit: "contain",
         width: "100%",
-        height: "100%"
+        height: "100%",
       });
 
       zoomInput.value = editState.zoom;
@@ -1224,7 +1256,7 @@ class PhotoLayoutEditor {
         fit: "fill",
         objectFit: "fill",
         width: "100%",
-        height: "100%"
+        height: "100%",
       });
 
       zoomInput.value = editState.zoom;
@@ -1314,17 +1346,21 @@ class PhotoLayoutEditor {
         containerWidth: card.size.width,
         containerHeight: card.size.height,
         originalWidth: card.image.originalWidth,
-        originalHeight: card.image.originalHeight
+        originalHeight: card.image.originalHeight,
       };
 
       // Save final state to session
-      this.sessionManager.updateCardImageSettings(pageNumber, cardId, completeImageSettings);
-      console.log('After editing image settings - Card state:', {
+      this.sessionManager.updateCardImageSettings(
+        pageNumber,
+        cardId,
+        completeImageSettings
+      );
+      console.log("After editing image settings - Card state:", {
         pageNumber,
         cardId,
         card: this.sessionManager.getCard(pageNumber, cardId),
         editState: completeImageSettings,
-        originalEditState: editState
+        originalEditState: editState,
       });
       this.sessionManager.saveState("Edit Image");
 
@@ -1495,7 +1531,7 @@ class PhotoLayoutEditor {
         // Get the card to access its size
         const pageNumber = this.sessionManager.sessionData.currentPage + 1;
         const card = this.sessionManager.getCard(pageNumber, cardId);
-        
+
         // Create complete initial image settings
         const initialImageSettings = {
           width: "100%",
@@ -1509,20 +1545,24 @@ class PhotoLayoutEditor {
           containerWidth: card.size.width,
           containerHeight: card.size.height,
           originalWidth: img.width,
-          originalHeight: img.height
+          originalHeight: img.height,
         };
 
         // Update session and layout state
         this.sessionManager.setCardImage(pageNumber, cardId, imageData);
-        this.sessionManager.updateCardImageSettings(pageNumber, cardId, initialImageSettings);
-        
-        console.log('After adding image - Card state:', {
+        this.sessionManager.updateCardImageSettings(
+          pageNumber,
+          cardId,
+          initialImageSettings
+        );
+
+        console.log("After adding image - Card state:", {
           pageNumber,
           cardId,
           card: this.sessionManager.getCard(pageNumber, cardId),
-          imageSettings: initialImageSettings
+          imageSettings: initialImageSettings,
         });
-        
+
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
 
         // Update display

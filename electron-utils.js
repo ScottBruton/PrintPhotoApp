@@ -2,6 +2,7 @@ const { ipcMain } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
 
+
 function setupIpcHandlers() {
     // Handler for saving HTML to temp file
     ipcMain.handle('save-temp-html', async (event, html) => {

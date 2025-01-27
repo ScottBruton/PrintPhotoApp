@@ -92,24 +92,34 @@ class PrintHandler:
     def print_file(file_path, printer_name):
         try:
             if not os.path.exists(file_path):
-                raise FileNotFoundError(f"File not found: {file_path}")
+                return json.dumps({
+                    'success': False, 
+                    'error': f"File not found: {file_path}"
+                })
 
             # Set the printer
             if printer_name:
                 win32print.SetDefaultPrinter(printer_name)
 
-            # Print the file
+            # Use ShellExecute with "printto" verb to print HTML properly
             win32api.ShellExecute(
                 0,
-                "print",
+                "printto",
                 file_path,
-                None,
+                f'"{printer_name}"',
                 ".",
                 0
             )
-            return json.dumps({'success': True})
+
+            return json.dumps({
+                'success': True,
+                'message': "Print job sent successfully"
+            })
         except Exception as e:
-            return json.dumps({'success': False, 'error': str(e)})
+            return json.dumps({
+                'success': False,
+                'error': str(e)
+            })
 
     @staticmethod
     def get_printer_status(printer_name):

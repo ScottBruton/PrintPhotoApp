@@ -1,166 +1,206 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>ScoBro-Prints</title>
-    <link rel="icon" type="image/x-icon" href="asset/scoBroPrints.ico">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="printing.css">
-    <link rel="stylesheet" href="printPreview.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-</head>
-<body>
+    <link rel="icon" type="image/x-icon" href="asset/scoBroPrints.ico" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="printing.css" />
+    <link rel="stylesheet" href="printPreview.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+  </head>
+  <body>
     <div class="app-header">
-        <img src="asset/scoBroPrints.svg" alt="ScoBro Prints Logo" class="app-logo">
+      <img
+        src="asset/scoBroPrints.svg"
+        alt="ScoBro Prints Logo"
+        class="app-logo"
+      />
+      <div
+        id="app-version"
+        style="
+          font-size: 12px;
+          color: #333;
+          margin-top: 4px;
+          text-align: center;
+        "
+      ></div>
     </div>
 
     <div class="toolbar">
-        <div class="toolbar-left">
-            <button id="addPage" class="toolbar-btn">+ Add Page</button>
-            <button id="editSize" class="toolbar-btn">Edit Size</button>
-            <button id="saveLayout" class="toolbar-btn">Save</button>
-            <button id="loadLayout" class="toolbar-btn">Load</button>
-            <button id="exportPDF" class="toolbar-btn">Export PDF</button>
-            <button id="printPreview" class="toolbar-btn">Print Preview</button>
-        </div>
-        <div class="toolbar-center">
-            <button id="undo" class="toolbar-btn">↶ Undo</button>
-            <button id="redo" class="toolbar-btn">↷ Redo</button>
-        </div>
-        <div class="toolbar-right">
-            <button id="resetProject" class="toolbar-btn reset-btn">
-                <img src="asset/reset.svg" alt="Reset" style="width: 16px; height: 16px; margin-right: 4px;">
-                Reset
-            </button>
-        </div>
+      <div class="toolbar-left">
+        <button id="addPage" class="toolbar-btn">+ Add Page</button>
+        <button id="editSize" class="toolbar-btn">Edit Size</button>
+        <button id="saveLayout" class="toolbar-btn">Save</button>
+        <button id="loadLayout" class="toolbar-btn">Load</button>
+        <button id="exportPDF" class="toolbar-btn">Export PDF</button>
+        <button id="printPreview" class="toolbar-btn">Print Preview</button>
+      </div>
+      <div class="toolbar-center">
+        <button id="undo" class="toolbar-btn">↶ Undo</button>
+        <button id="redo" class="toolbar-btn">↷ Redo</button>
+      </div>
+      <div class="toolbar-right">
+        <button id="resetProject" class="toolbar-btn reset-btn">
+          <img
+            src="asset/reset.svg"
+            alt="Reset"
+            style="width: 16px; height: 16px; margin-right: 4px"
+          />
+          Reset
+        </button>
+      </div>
     </div>
 
     <div class="page-navigation">
-        <button id="prevPage" class="nav-btn">←</button>
-        <span id="pageIndicator">Page 1 of 1</span>
-        <button id="nextPage" class="nav-btn">→</button>
+      <button id="prevPage" class="nav-btn">←</button>
+      <span id="pageIndicator">Page 1 of 1</span>
+      <button id="nextPage" class="nav-btn">→</button>
     </div>
 
     <div id="pageContainer">
-        <div id="a4Page" class="a4-page">
-            <!-- Photo placeholders will be added here dynamically -->
-        </div>
+      <div id="a4Page" class="a4-page">
+        <!-- Photo placeholders will be added here dynamically -->
+      </div>
     </div>
 
     <!-- Photo Size Selection Modal -->
     <div id="sizeModal" class="modal">
-        <div class="modal-content size-selection-content">
-            <div class="modal-header">
-                <h2>Select Photo Size</h2>
-                <button id="closeSizeModal" class="close-btn">&times;</button>
-            </div>
-            <div class="size-categories">
-                <h3>Small Sizes (Wallet/Compact)</h3>
-                <div class="size-options">
-                    <button data-size="51x51">51×51mm Square</button>
-                    <button data-size="64x89-p">64×89mm Portrait</button>
-                    <button data-size="89x64-l">89×64mm Landscape</button>
-                    <button data-size="89x127-p">89×127mm Portrait</button>
-                    <button data-size="127x89-l">127×89mm Landscape</button>
-                </div>
-                
-                <h3>Common Sizes</h3>
-                <div class="size-options">
-                    <button data-size="102x152-p">102×152mm Portrait</button>
-                    <button data-size="152x102-l">152×102mm Landscape</button>
-                    <button data-size="127x178-p">127×178mm Portrait</button>
-                    <button data-size="178x127-l">178×127mm Landscape</button>
-                    <button data-size="152x203-p">152×203mm Portrait</button>
-                    <button data-size="203x152-l">203×152mm Landscape</button>
-                </div>
-                
-                <h3>Large Sizes</h3>
-                <div class="size-options">
-                    <button data-size="203x254-p">203×254mm Portrait</button>
-                    <button data-size="254x203-l">254×203mm Landscape</button>
-                </div>
-
-                <div class="custom-size-header">
-                    <h3>
-                        <input type="checkbox" id="enableCustomSize">
-                        Custom Size
-                    </h3>
-                </div>
-                <div class="custom-size-section" id="customSizeSection">
-                    <div class="custom-size-inputs">
-                        <div class="input-group">
-                            <label>Width (mm)</label>
-                            <input type="number" id="customWidth" value="100" disabled>
-                            <div class="validation-message" id="widthValidation">Width must be between 1 and 210mm</div>
-                        </div>
-                        <div class="input-group">
-                            <label>Height (mm)</label>
-                            <input type="number" id="customHeight" value="150" disabled>
-                            <div class="validation-message" id="heightValidation">Height must be between 1 and 297mm</div>
-                        </div>
-                    </div>
-                    <div class="size-modal-actions">
-                        <button id="applyCustomSize" class="apply-size-btn" disabled>Apply Custom Size</button>
-                    </div>
-                </div>
-            </div>
-            <div class="size-modal-footer">
-                <button id="applyToPage" class="apply-to-page-btn" disabled>Apply To Page</button>
-            </div>
+      <div class="modal-content size-selection-content">
+        <div class="modal-header">
+          <h2>Select Photo Size</h2>
+          <button id="closeSizeModal" class="close-btn">&times;</button>
         </div>
+        <div class="size-categories">
+          <h3>Small Sizes (Wallet/Compact)</h3>
+          <div class="size-options">
+            <button data-size="51x51">51×51mm Square</button>
+            <button data-size="64x89-p">64×89mm Portrait</button>
+            <button data-size="89x64-l">89×64mm Landscape</button>
+            <button data-size="89x127-p">89×127mm Portrait</button>
+            <button data-size="127x89-l">127×89mm Landscape</button>
+          </div>
+
+          <h3>Common Sizes</h3>
+          <div class="size-options">
+            <button data-size="102x152-p">102×152mm Portrait</button>
+            <button data-size="152x102-l">152×102mm Landscape</button>
+            <button data-size="127x178-p">127×178mm Portrait</button>
+            <button data-size="178x127-l">178×127mm Landscape</button>
+            <button data-size="152x203-p">152×203mm Portrait</button>
+            <button data-size="203x152-l">203×152mm Landscape</button>
+          </div>
+
+          <h3>Large Sizes</h3>
+          <div class="size-options">
+            <button data-size="203x254-p">203×254mm Portrait</button>
+            <button data-size="254x203-l">254×203mm Landscape</button>
+          </div>
+
+          <div class="custom-size-header">
+            <h3>
+              <input type="checkbox" id="enableCustomSize" />
+              Custom Size
+            </h3>
+          </div>
+          <div class="custom-size-section" id="customSizeSection">
+            <div class="custom-size-inputs">
+              <div class="input-group">
+                <label>Width (mm)</label>
+                <input type="number" id="customWidth" value="100" disabled />
+                <div class="validation-message" id="widthValidation">
+                  Width must be between 1 and 210mm
+                </div>
+              </div>
+              <div class="input-group">
+                <label>Height (mm)</label>
+                <input type="number" id="customHeight" value="150" disabled />
+                <div class="validation-message" id="heightValidation">
+                  Height must be between 1 and 297mm
+                </div>
+              </div>
+            </div>
+            <div class="size-modal-actions">
+              <button id="applyCustomSize" class="apply-size-btn" disabled>
+                Apply Custom Size
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="size-modal-footer">
+          <button id="applyToPage" class="apply-to-page-btn" disabled>
+            Apply To Page
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Image Editor Modal -->
     <div id="imageEditorModal" class="modal">
-        <div class="modal-content">
-            <h2>Edit Image</h2>
-            <div id="imageEditorPreview" class="image-container"></div>
-            <div class="image-controls">
-                <div>
-                    <label>Zoom</label>
-                    <input type="range" id="imageZoom" min="100" max="200" value="100">
-                </div>
-                <div>
-                    <label>Rotation</label>
-                    <input type="range" id="imageRotation" min="0" max="360" value="0">
-                </div>
-                <div class="image-editor-controls">
-                    <button id="fitImage">Fit to Card</button>
-                    <button id="fillImage">Fill Card</button>
-                    <button id="rotateLeft">Rotate Left</button>
-                    <button id="rotateRight">Rotate Right</button>
-                </div>
-                <div class="editor-actions">
-                    <div>
-                        <button id="undoEdit">↶ Undo</button>
-                        <button id="redoEdit">↷ Redo</button>
-                    </div>
-                    <div>
-                        <button id="cancelChanges">Cancel</button>
-                        <button id="applyChanges">Save Changes</button>
-                    </div>
-                </div>
+      <div class="modal-content">
+        <h2>Edit Image</h2>
+        <div id="imageEditorPreview" class="image-container"></div>
+        <div class="image-controls">
+          <div>
+            <label>Zoom</label>
+            <input
+              type="range"
+              id="imageZoom"
+              min="100"
+              max="200"
+              value="100"
+            />
+          </div>
+          <div>
+            <label>Rotation</label>
+            <input
+              type="range"
+              id="imageRotation"
+              min="0"
+              max="360"
+              value="0"
+            />
+          </div>
+          <div class="image-editor-controls">
+            <button id="fitImage">Fit to Card</button>
+            <button id="fillImage">Fill Card</button>
+            <button id="rotateLeft">Rotate Left</button>
+            <button id="rotateRight">Rotate Right</button>
+          </div>
+          <div class="editor-actions">
+            <div>
+              <button id="undoEdit">↶ Undo</button>
+              <button id="redoEdit">↷ Redo</button>
             </div>
+            <div>
+              <button id="cancelChanges">Cancel</button>
+              <button id="applyChanges">Save Changes</button>
+            </div>
+          </div>
         </div>
-    </div>
-
-        <!-- Print Preview Modal -->
-    <div id="printPreviewModal" class="modal">
-        <div class="modal-content">
-            <h2>Print Preview</h2>
-            <div id="printPreviewContent"></div>
-            <button id="confirmPrint">Print</button>
-            <button id="cancelPrint">Cancel</button>
-        </div>
+      </div>
     </div>
 
     <!-- Print Preview Modal -->
     <div id="printPreviewModal" class="modal">
-        <div class="modal-content">
-            <h2>Print Preview</h2>
-            <div id="printPreviewContent"></div>
-            <button id="confirmPrint">Print</button>
-            <button id="cancelPrint">Cancel</button>
-        </div>
+      <div class="modal-content">
+        <h2>Print Preview</h2>
+        <div id="printPreviewContent"></div>
+        <button id="confirmPrint">Print</button>
+        <button id="cancelPrint">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Print Preview Modal -->
+    <div id="printPreviewModal" class="modal">
+      <div class="modal-content">
+        <h2>Print Preview</h2>
+        <div id="printPreviewContent"></div>
+        <button id="confirmPrint">Print</button>
+        <button id="cancelPrint">Cancel</button>
+      </div>
     </div>
 
     <script src="node_modules/html2canvas/dist/html2canvas.min.js"></script>
@@ -170,5 +210,5 @@
     <script type="module" src="renderer.js"></script>
     <script src="printPreview.js"></script>
     <script src="printing.js"></script>
-</body>
-</html> 
+  </body>
+</html>

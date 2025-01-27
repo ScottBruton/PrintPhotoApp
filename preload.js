@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// Add this at the top to determine dev mode
+const isDevMode = process.defaultApp || /[\\/]electron/i.test(process.execPath);
+
 // Add console log to verify preload script is running
 console.log("Preload script running");
 
@@ -7,14 +10,11 @@ contextBridge.exposeInMainWorld("electron", {
   invoke: (channel, data) => {
     console.log("IPC invoke called:", channel, data);
     const validChannels = [
-      "check-for-updates",
-      "download-update",
-      "install-update",
       "restart-app",
-      "create-main-window",
       "save-temp-html",
       "save-layout",
-      "load-layout"
+      "load-layout",
+   
     ];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
@@ -41,8 +41,18 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.invoke("win-print-file", { filePath, printerName }),
     getTempFile: (filename) => ipcRenderer.invoke("get-temp-file", filename),
   },
-  createTempPDF: (htmlContent) => ipcRenderer.invoke("create-temp-pdf", htmlContent),
+  createTempPDF: (htmlContent) =>
+    ipcRenderer.invoke("create-temp-pdf", htmlContent),
   saveTempHtml: (html) => ipcRenderer.invoke("save-temp-html", html),
   saveLayout: (layoutData) => ipcRenderer.invoke("save-layout", layoutData),
-  loadLayout: () => ipcRenderer.invoke("load-layout")
+  loadLayout: () => ipcRenderer.invoke("load-layout"),
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  getGitHubRepoKey: () => ipcRenderer.invoke('get-github-repo-key'),
+  removeAllListeners: (channel) => {
+    const validChannels = ["download-progress"];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    }
+  },
+
 });
