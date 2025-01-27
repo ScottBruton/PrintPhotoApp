@@ -86,7 +86,7 @@ class PrintManager {
       this.showToast("Error refreshing printer list");
     }
   }
-
+  
   getPrinterStatusText(status, printerName) {
     // List of known virtual printers
     const virtualPrinters = [
