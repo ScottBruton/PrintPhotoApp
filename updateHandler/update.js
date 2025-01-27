@@ -85,7 +85,7 @@ function logUpdateConfig(key) {
 }
 
 // Function to check for updates
-async function checkForUpdates(ipcMain) {
+async function checkForUpdates(ipcMain, createWindowCallback) {
     log.info('Starting update check...');
     log.info('App version:', app.getVersion());
     log.info('Is packaged:', app.isPackaged);
@@ -147,8 +147,8 @@ async function checkForUpdates(ipcMain) {
         console.log('Starting update download...');
         try {
             // Log available releases before downloading
-            const updateCheckResult = await autoUpdater.checkForUpdates();
-            console.log('Update check result:', updateCheckResult);
+            //const updateCheckResult = await autoUpdater.checkForUpdates();
+           // console.log('Update check result:', updateCheckResult);
             
             await autoUpdater.downloadUpdate();
         } catch (error) {
@@ -171,6 +171,10 @@ async function checkForUpdates(ipcMain) {
         console.log('Update cancelled by user');
         if (updateWindow) {
             updateWindow.close();
+        }
+        // Create the main window when update is cancelled
+        if (createWindowCallback) {
+            createWindowCallback();
         }
     });
 
@@ -228,8 +232,48 @@ async function checkForUpdates(ipcMain) {
     }
 }
 
+// Function to check if an update is available
+async function isUpdateAvailable() {
+    // Configure autoUpdater logger
+    autoUpdater.logger = log;
+
+    // Configure GitHub token for updates
+    try {
+        autoUpdater.setFeedURL({
+            provider: 'github',
+            repo: 'PrintPhotoApp',
+            owner: 'ScottBruton',
+            private: true,
+            token: process.env.GITHUB_REPO_KEY
+        });
+    } catch (error) {
+        log.error('Failed to configure autoUpdater:', error);
+        return false;
+    }
+
+    // Configure update behavior
+    autoUpdater.autoDownload = false;
+    autoUpdater.forceDevUpdateConfig = true;
+
+    try {
+        const updateCheckResult = await autoUpdater.checkForUpdates();
+        if (updateCheckResult && updateCheckResult.updateInfo) {
+            const currentVersion = app.getVersion();
+            const latestVersion = updateCheckResult.updateInfo.version;
+            log.info('Current version:', currentVersion);
+            log.info('Latest version:', latestVersion);
+            return currentVersion !== latestVersion;
+        }
+        return false;
+    } catch (error) {
+        log.error('Error checking for updates:', error);
+        return false;
+    }
+}
+
 module.exports = {
     checkForUpdates,
     fetchGitHubKey,
     createUpdateWindow,
+    isUpdateAvailable
 };

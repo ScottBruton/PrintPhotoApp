@@ -10,7 +10,7 @@ const os = require("os");
 const { jsPDF } = require("jspdf");
 const html2canvas = require("html2canvas");
 const { setupIpcHandlers } = require("./electron-utils");
-const { checkForUpdates, fetchGitHubKey } = require('./updateHandler/update.js');
+const { checkForUpdates, fetchGitHubKey, isUpdateAvailable } = require('./updateHandler/update.js');
 
 // Setup IPC handlers
 setupIpcHandlers();
@@ -373,17 +373,20 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
 // App startup
 app.whenReady().then(async () => {
     console.log("App ready");
-    createWindow();
-
-    // Only check for updates in production mode
-    if (app.isPackaged) {
-        // Wait a few seconds before checking for updates
-        setTimeout(() => {
-            // Fetch GitHub key and set up IPC handlers
-            fetchGitHubKey(ipcMain);
-            // Start checking for updates
-            checkForUpdates(ipcMain);
-        }, 3000); // Wait 3 seconds after app starts
+    const updateAvailable = await isUpdateAvailable();
+    if (updateAvailable) {
+        // Only check for updates in production mode
+        if (app.isPackaged) {
+            // Wait a few seconds before checking for updates
+            setTimeout(() => {
+                // Fetch GitHub key and set up IPC handlers
+                fetchGitHubKey(ipcMain);
+                // Start checking for updates and pass createWindow as callback
+                checkForUpdates(ipcMain, createWindow);
+            }, 3000); // Wait 3 seconds after app starts
+        }
+    } else {
+        createWindow();
     }
 });
 
