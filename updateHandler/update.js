@@ -192,10 +192,14 @@ async function checkForUpdates(ipcMain, createWindowCallback) {
     });
 
     autoUpdater.on('download-progress', (progress) => {
-        console.log(`Download progress: ${progress.percent}%`);
+        console.log('Download progress:', progress);
         if (updateWindow) {
-            const percentage = Math.floor(progress.percent);
-            updateWindow.webContents.send('update-progress', percentage);
+            updateWindow.webContents.send('update-progress', {
+                percent: progress.percent,
+                bytesPerSecond: progress.bytesPerSecond,
+                total: progress.total,
+                transferred: progress.transferred
+            });
         }
     });
 

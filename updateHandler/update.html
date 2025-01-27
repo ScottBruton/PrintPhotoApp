@@ -54,6 +54,32 @@
         .hidden {
             display: none;
         }
+        .stats-container {
+            position: fixed;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .total-size {
+            /* Blue circle area */
+            text-align: left;
+        }
+        
+        .progress-percent {
+            /* Center area */
+            text-align: center;
+        }
+        
+        .download-speed {
+            /* Red circle area */
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -65,6 +91,11 @@
     <div class="button-container">
         <button id="downloadBtn" class="hidden">Download Update</button>
         <button id="cancelBtn">Cancel</button>
+    </div>
+    <div class="stats-container">
+        <div id="total-size" class="total-size">Total: 0 MB</div>
+        <div id="progress-percent" class="progress-percent">0%</div>
+        <div id="download-speed" class="download-speed">0 KB/s</div>
     </div>
 </body>
 <script>
@@ -82,10 +113,34 @@
         downloadBtn.classList.remove('hidden');
     });
 
-    // Listen for progress updates
-    window.updateAPI.onUpdateProgress((progress) => {
+    // Helper function to format bytes to human readable format
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
+
+    // Listen for progress updates with detailed information
+    window.updateAPI.onUpdateProgress((progressInfo) => {
         const progressBar = document.getElementById('progress-bar');
-        progressBar.style.width = `${progress}%`;
+        const progressPercent = document.getElementById('progress-percent');
+        const totalSize = document.getElementById('total-size');
+        const downloadSpeed = document.getElementById('download-speed');
+
+        // Update progress bar
+        progressBar.style.width = `${progressInfo.percent}%`;
+        
+        // Update percentage
+        progressPercent.textContent = `${Math.floor(progressInfo.percent)}%`;
+        
+        // Update total size
+        totalSize.textContent = `Total: ${formatBytes(progressInfo.total)}`;
+        
+        // Update download speed
+        downloadSpeed.textContent = `${formatBytes(progressInfo.bytesPerSecond)}/s`;
     });
 
     // Download button handler
