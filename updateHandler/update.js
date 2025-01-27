@@ -13,6 +13,7 @@ console.warn = log.warn;
 console.info = log.info;
 
 let updateWindow = null;
+let installStatusWindow = null;
 
 // Function to create the update window
 function createUpdateWindow() {
@@ -51,6 +52,33 @@ function createUpdateWindow() {
         console.log('Update window closed.');
         updateWindow = null;
     });
+}
+
+// Function to create the installation status window
+function createInstallStatusWindow() {
+    if (installStatusWindow) {
+        return installStatusWindow;
+    }
+
+    installStatusWindow = new BrowserWindow({
+        width: 400,
+        height: 200,
+        frame: false,
+        resizable: false,
+        show: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'install-status-preload.js')
+        }
+    });
+
+    installStatusWindow.loadFile(path.join(__dirname, 'install-status.html'));
+    installStatusWindow.once('ready-to-show', () => {
+        installStatusWindow.show();
+    });
+
+    return installStatusWindow;
 }
 
 // Function to fetch the GitHub key
@@ -207,13 +235,19 @@ async function checkForUpdates(ipcMain, createWindowCallback) {
         console.log('Update downloaded successfully.');
 
         if (updateWindow) {
-            updateWindow.webContents.send('update-message', 'Update downloaded. Restarting...');
+            updateWindow.webContents.send('update-message', 'Update downloaded. Installing...');
+            updateWindow.close();
         }
 
-        // Wait a short moment to let the user see the message, then restart
+        // Create and show installation status window
+        const installWindow = createInstallStatusWindow();
+        
+        // Wait a moment to show the installation window
         setTimeout(() => {
-            console.log('Restarting application to apply the update...');
+            // Quit and install silently
             autoUpdater.quitAndInstall(true, true);
+            
+            // The app will restart automatically after installation
         }, 2000);
     });
 

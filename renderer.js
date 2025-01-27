@@ -345,51 +345,73 @@ class PhotoLayoutEditor {
 
     // Handle custom size validation
     customWidthInput.addEventListener("input", (e) => {
-      // Only validate on input, don't modify the value
-      this.validateInput(
-        e.target,
-        1,
-        210,
-        document.getElementById("widthValidation")
-      );
+      const value = e.target.value;
+      // Allow empty input or numbers
+      if (value === "" || /^\d*$/.test(value)) {
+        const numValue = value === "" ? 0 : parseInt(value);
+        const isValid = numValue >= 1 && numValue <= 210;
+        e.target.classList.toggle("invalid", !isValid);
+        document.getElementById("widthValidation").classList.toggle("show", !isValid);
+        updateApplyButtonState();
+      } else {
+        // If input is not a number, prevent the change
+        e.target.value = e.target.value.replace(/[^\d]/g, '');
+      }
     });
 
     customHeightInput.addEventListener("input", (e) => {
-      // Only validate on input, don't modify the value
-      this.validateInput(
-        e.target,
-        1,
-        297,
-        document.getElementById("heightValidation")
-      );
+      const value = e.target.value;
+      // Allow empty input or numbers
+      if (value === "" || /^\d*$/.test(value)) {
+        const numValue = value === "" ? 0 : parseInt(value);
+        const isValid = numValue >= 1 && numValue <= 297;
+        e.target.classList.toggle("invalid", !isValid);
+        document.getElementById("heightValidation").classList.toggle("show", !isValid);
+        updateApplyButtonState();
+      } else {
+        // If input is not a number, prevent the change
+        e.target.value = e.target.value.replace(/[^\d]/g, '');
+      }
     });
 
     // Add blur handlers to clean up invalid input when user is done typing
     customWidthInput.addEventListener("blur", (e) => {
-      let value = e.target.value;
-      if (value === "" || isNaN(value) || value < 1 || value > 210) {
+      const value = e.target.value;
+      if (value === "" || isNaN(value) || parseInt(value) < 1 || parseInt(value) > 210) {
         e.target.value = "100"; // Reset to default
-        this.validateInput(
-          e.target,
-          1,
-          210,
-          document.getElementById("widthValidation")
-        );
+        e.target.classList.remove("invalid");
+        document.getElementById("widthValidation").classList.remove("show");
+        updateApplyButtonState();
       }
     });
 
     customHeightInput.addEventListener("blur", (e) => {
-      let value = e.target.value;
-      if (value === "" || isNaN(value) || value < 1 || value > 297) {
+      const value = e.target.value;
+      if (value === "" || isNaN(value) || parseInt(value) < 1 || parseInt(value) > 297) {
         e.target.value = "150"; // Reset to default
-        this.validateInput(
-          e.target,
-          1,
-          297,
-          document.getElementById("heightValidation")
-        );
+        e.target.classList.remove("invalid");
+        document.getElementById("heightValidation").classList.remove("show");
+        updateApplyButtonState();
       }
     });
+
+    // Function to update Apply Custom Size button state
+    function updateApplyButtonState() {
+      const widthValue = customWidthInput.value;
+      const heightValue = customHeightInput.value;
+      
+      const widthValid = widthValue !== "" && 
+                        !isNaN(widthValue) && 
+                        parseInt(widthValue) >= 1 && 
+                        parseInt(widthValue) <= 210;
+      
+      const heightValid = heightValue !== "" && 
+                         !isNaN(heightValue) && 
+                         parseInt(heightValue) >= 1 && 
+                         parseInt(heightValue) <= 297;
+
+      document.getElementById("applyCustomSize").disabled = !(widthValid && heightValid);
+    }
 
     // Update custom size checkbox handler
     customSizeCheckbox.addEventListener("change", (e) => {
