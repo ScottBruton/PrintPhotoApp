@@ -1,13 +1,15 @@
 {
   "name": "printphotoapp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx electron .",
     "dev": "nodemon --watch * --exec \"npx electron .\"",
     "dev-reload": "npx electron . --dev-reload",
+    "prebuild": "npm run build-exe",
     "build": "electron-builder",
+    "build-exe": "node build_exe.js",
     "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win nsis', {stdio: 'inherit'});\""
   },
   "repository": {
@@ -56,6 +58,16 @@
       "deleteAppDataOnUninstall": false
     },
     "publish": ["github"],
-    "generateUpdatesFilesForAllChannels": true
+    "generateUpdatesFilesForAllChannels": true,
+    "asarUnpack": [
+      "print_handler.py",
+      "requirements.txt"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/print_handler.exe",
+        "to": "print_handler.exe"
+      }
+    ]
   }
 }

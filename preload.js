@@ -54,5 +54,5 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.removeAllListeners(channel);
     }
   },
-
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
 });

@@ -250,57 +250,56 @@ ipcMain.handle("save-pdf", async (event, { data, defaultPath }) => {
   }
 });
 
-// Add these handlers after your existing ipcMain handlers
+async function isDev() {
+  try {
+    // Use dynamic import
+    const electronIsDev = await import('electron-is-dev');
+    return electronIsDev.default;
+  } catch (error) {
+    // Fallback method if import fails
+    return !app.isPackaged;
+  }
+}
+
+async function getPrinterHandlerPath() {
+  const devMode = await isDev();
+  if (devMode) {
+    return {
+      command: 'python',
+      args: [path.join(__dirname, 'print_handler.py')]
+    };
+  }
+  
+  // In production, use the bundled executable
+  return {
+    command: path.join(process.resourcesPath, 'print_handler.exe'),
+    args: []
+  };
+}
+
+// Add this to your existing IPC handlers
 ipcMain.handle("win-get-printers", async () => {
   try {
-    const pythonProcess = spawn("python", ["print_handler.py", "get_printers"]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
-    });
-    return JSON.parse(result);
+    const { command, args } = await getPrinterHandlerPath();
+    const fullArgs = [...args, "get_printers"];
+    
+    console.log('Executing printer handler:', command, fullArgs);
+    
+    const { stdout } = await execPromise(`"${command}" ${fullArgs.join(' ')}`);
+    return JSON.parse(stdout);
   } catch (error) {
-    console.error("Error getting Windows printers:", error);
+    console.error('Error getting printers:', error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle("win-set-default-printer", async (event, printerName) => {
   try {
-    const pythonProcess = spawn("python", [
-      "print_handler.py",
-      "set_default",
-      printerName,
-    ]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
-    });
-    return JSON.parse(result);
+    const { command, args } = await getPrinterHandlerPath();
+    const fullArgs = [...args, "set_default", printerName];
+    
+    const { stdout } = await execPromise(`"${command}" ${fullArgs.join(' ')}`);
+    return JSON.parse(stdout);
   } catch (error) {
     console.error("Error setting default printer:", error);
     return { success: false, error: error.message };
@@ -309,85 +308,34 @@ ipcMain.handle("win-set-default-printer", async (event, printerName) => {
 
 ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
-    const absolutePath = path.join(app.getAppPath(), filePath);
-    console.log("Printing file:", absolutePath);
-
-    // Create a hidden window for printing
-    const printWindow = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-
-    // Load the HTML file
-    await printWindow.loadFile(absolutePath);
-
-    // Wait a bit for content to load
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Return a promise that resolves when printing is complete
-    return new Promise((resolve) => {
-      printWindow.webContents.print(
-        {
-          silent: false,
-          printBackground: true,
-          deviceName: printerName,
-          color: true,
-          margins: { marginType: "none" },
-          pageSize: "A4",
-          landscape: false,
-          scaleFactor: 100,
-          copies: 1,
-          collate: true,
-        },
-        (success, errorType) => {
-          console.log("Print callback:", success, errorType);
-          printWindow.close();
-
-          if (success) {
-            resolve({
-              success: true,
-              message: "Print job sent successfully",
-            });
-          } else {
-            resolve({
-              success: false,
-              error: errorType || "Print was cancelled or failed",
-            });
-          }
-        }
-      );
-    });
+    const { command, args } = await getPrinterHandlerPath();
+    const fullArgs = [...args, "print", filePath, printerName];
+    
+    const { stdout } = await execPromise(`"${command}" ${fullArgs.join(' ')}`);
+    return JSON.parse(stdout);
   } catch (error) {
-    console.error("Error in print handler:", error);
-    return {
-      success: false,
-      error: error.message || "Print failed",
-      details: error.toString(),
-    };
+    console.error("Error printing file:", error);
+    return { success: false, error: error.message };
   }
 });
 
-// App startup
+// Call this when your app starts
 app.whenReady().then(async () => {
-    console.log("App ready");
-    const updateAvailable = await isUpdateAvailable();
-    if (updateAvailable) {
-        // Only check for updates in production mode
-        if (app.isPackaged) {
-            // Wait a few seconds before checking for updates
-            setTimeout(() => {
-                // Fetch GitHub key and set up IPC handlers
-                fetchGitHubKey(ipcMain);
-                // Start checking for updates and pass createWindow as callback
-                checkForUpdates(ipcMain, createWindow);
-            }, 3000); // Wait 3 seconds after app starts
-        }
-    } else {
-        createWindow();
+  createWindow();
+  console.log("App ready");
+  const updateAvailable = await isUpdateAvailable();
+  if (updateAvailable) {
+    // Only check for updates in production mode
+    if (app.isPackaged) {
+      // Wait a few seconds before checking for updates
+      setTimeout(() => {
+        // Fetch GitHub key and set up IPC handlers
+        fetchGitHubKey(ipcMain);
+        // Start checking for updates and pass createWindow as callback
+        checkForUpdates(ipcMain, createWindow);
+      }, 3000); // Wait 3 seconds after app starts
     }
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -472,3 +420,16 @@ ipcMain.handle("restart-app", () => {
 ipcMain.handle("get-app-version", () => {
   return app.getVersion();
 });
+// Add this after setupIpcHandlers();
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    // Only fetch GitHub key if not already done
+    await fetchGitHubKey(ipcMain);
+    await checkForUpdates(ipcMain, createWindow);
+    return { success: true };
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return { success: false, error: error.message };
+  }
+});
+

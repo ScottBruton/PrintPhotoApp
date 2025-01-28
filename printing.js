@@ -712,6 +712,13 @@ class PrintManager {
     }
   }
 
+  cleanup() {
+    if (this.printerStatusInterval) {
+      clearInterval(this.printerStatusInterval);
+      this.printerStatusInterval = null;
+    }
+  }
+
   // Add this method to show more detailed printer info
   showPrinterDetails(printer) {
     const details = [
