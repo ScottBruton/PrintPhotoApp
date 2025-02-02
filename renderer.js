@@ -199,6 +199,7 @@ class PhotoLayoutEditor {
     this.prevPageBtn = document.getElementById("prevPage");
     this.nextPageBtn = document.getElementById("nextPage");
     this.pageIndicator = document.getElementById("pageIndicator");
+    this.manualUpdateCheckBtn = document.getElementById("manualUpdateCheck");
 
     // Show size selection modal on start
     this.showSizeModal();
@@ -208,6 +209,7 @@ class PhotoLayoutEditor {
     this.addPageBtn.addEventListener("click", () => this.addNewPage());
     this.prevPageBtn.addEventListener("click", () => this.navigatePage(-1));
     this.nextPageBtn.addEventListener("click", () => this.navigatePage(1));
+    this.manualUpdateCheckBtn.addEventListener("click", () => this.manualUpdateCheck());
 
     // Add reset button event listener
     document
@@ -472,6 +474,14 @@ class PhotoLayoutEditor {
     document
       .getElementById("redo")
       .addEventListener("click", () => this.redo());
+
+    // Update the manual update check binding
+    const manualUpdateCheckBtn = document.getElementById('manualUpdateCheck');
+    if (manualUpdateCheckBtn) {
+        manualUpdateCheckBtn.addEventListener('click', async () => {
+            await window.electron.manualUpdateCheck();
+        });
+    }
   }
 
   validateInput(input, min, max, validationMsg) {

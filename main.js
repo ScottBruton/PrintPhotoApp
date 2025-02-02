@@ -369,6 +369,27 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   }
 });
 
+
+ipcMain.handle('manual-update-check', async () => {
+    console.log("Manual update check requested");   
+    const updateAvailable = await isUpdateAvailable();
+    if (updateAvailable) {
+        // Only check for updates in production mode
+        if (app.isPackaged) {
+            // Just check for updates without creating a new window
+            checkForUpdates(ipcMain);
+        }
+    } else {
+        // Show message when no updates are available
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Update Check',
+            message: 'No Updates Available - Using Latest Version',
+            buttons: ['OK']
+        });      
+    }
+});
+
 // App startup
 app.whenReady().then(async () => {
     console.log("App ready");

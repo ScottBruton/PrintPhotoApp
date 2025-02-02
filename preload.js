@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld("electron", {
   loadLayout: () => ipcRenderer.invoke("load-layout"),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getGitHubRepoKey: () => ipcRenderer.invoke('get-github-repo-key'),
+  manualUpdateCheck: () => ipcRenderer.invoke('manual-update-check'),
   removeAllListeners: (channel) => {
     const validChannels = ["download-progress"];
     if (validChannels.includes(channel)) {
