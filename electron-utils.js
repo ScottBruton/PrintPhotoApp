@@ -1,19 +1,24 @@
 const { ipcMain } = require('electron');
 const fs = require('fs').promises;
 const path = require('path');
+const os = require("os");
 
 
 function setupIpcHandlers() {
     // Handler for saving HTML to temp file
     ipcMain.handle('save-temp-html', async (event, html) => {
-        try {
+        try {           
+            const tempPath = path.join(os.tmpdir(), `currentLayout.html`);
             const tempDir = path.join(__dirname, 'temp');
             // Create temp directory if it doesn't exist
             await fs.mkdir(tempDir, { recursive: true });
             
             const filePath = path.join(tempDir, 'currentLayout.html');
+
             await fs.writeFile(filePath, html, 'utf8');
+            await fs.writeFile(tempPath, html, 'utf8');
             console.log('Saved layout HTML to:', filePath);
+            console.log('Saved layout HTML to:', tempDir);
             return true;
         } catch (error) {
             console.error('Error saving temp HTML:', error);

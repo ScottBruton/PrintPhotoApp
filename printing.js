@@ -262,6 +262,7 @@ class PrintManager {
 
   async executePrint() {
     try {
+      const tempPath = await window.electron.winPrint.getTempFile('currentLayout.html');
       // Gather all settings
       const settings = {
         printer: this.dialog.querySelector("#printerSelect").value,
@@ -283,7 +284,7 @@ class PrintManager {
       }
 
       // Send to print using Windows printing with existing temp file
-      const result = await window.electron.winPrint.printFile("temp/currentLayout.html", settings.printer);
+      const result = await window.electron.winPrint.printFile(tempPath, settings.printer);
       console.log("Print result:", result);
 
       if (result.success) {

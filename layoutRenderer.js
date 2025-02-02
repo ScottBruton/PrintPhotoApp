@@ -102,7 +102,7 @@ class LayoutRenderer {
             const pageHtml = this.generatePageHTML(page, pageIndex);
             html += pageHtml;
         });
-
+        
         return html;
     }
 

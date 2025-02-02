@@ -309,8 +309,7 @@ ipcMain.handle("win-set-default-printer", async (event, printerName) => {
 
 ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
-    const absolutePath = path.join(app.getAppPath(), filePath);
-    console.log("Printing file:", absolutePath);
+    console.log("Printing file:", filePath);
 
     // Create a hidden window for printing
     const printWindow = new BrowserWindow({
@@ -318,11 +317,11 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-      },
+      }
     });
 
-    // Load the HTML file
-    await printWindow.loadFile(absolutePath);
+    // Use loadFile for app files, but loadURL with file:// protocol for temp files
+    await printWindow.loadURL(`file://${filePath}`);
 
     // Wait a bit for content to load
     await new Promise((resolve) => setTimeout(resolve, 500));
