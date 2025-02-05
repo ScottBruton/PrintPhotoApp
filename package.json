@@ -7,8 +7,9 @@
     "start": "npx electron .",
     "dev": "nodemon --watch * --exec \"npx electron .\"",
     "dev-reload": "npx electron . --dev-reload",
-    "build": "electron-builder",
-    "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win nsis', {stdio: 'inherit'});\""
+    "build": "npm run build-python && electron-builder",
+    "publish": "node -e \"require('dotenv').config(); process.env.GH_TOKEN = process.env.GITHUB_REPO_KEY; process.env.USE_HARD_LINKS = 'false'; require('child_process').execSync('electron-builder -p always --win nsis', {stdio: 'inherit'});\"",
+    "build-python": "node build_python.js"
   },
   "repository": {
     "type": "git",
@@ -38,7 +39,14 @@
     "asar": true,
     "forceCodeSigning": false,
     "files": [
-      "**/*"
+      "**/*",
+      "!print_handler.py"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/print_handler.exe",
+        "to": "print_handler.exe"
+      }
     ],
     "win": {
       "target": "nsis",

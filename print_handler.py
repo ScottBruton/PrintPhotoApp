@@ -3,7 +3,17 @@ import win32api
 import sys
 import json
 import os
-import time as import_time
+import tempfile
+
+# Update the log_error function to use temp directory
+def log_error(message):
+    log_path = os.path.join(tempfile.gettempdir(), 'printer_error.log')
+    try:
+        with open(log_path, 'a') as f:
+            f.write(f"{message}\n")
+    except Exception as e:
+        # If logging fails, print to stderr as fallback
+        print(f"Logging error: {str(e)}\n{message}", file=sys.stderr)
 
 class PrintHandler:
     @staticmethod
@@ -27,28 +37,32 @@ class PrintHandler:
     def get_printers():
         try:
             printers = []
-            for printer in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS):
-                # Skip virtual printers
-                if PrintHandler.is_virtual_printer(printer[2]):
-                    continue
-
+            enum_flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+            
+            # Log the start of enumeration
+            log_error("Starting printer enumeration")
+            
+            for printer in win32print.EnumPrinters(enum_flags):
                 try:
+                    # Skip virtual printers
+                    if PrintHandler.is_virtual_printer(printer[2]):
+                        continue
+
+                    printer_name = printer[2]
+                    log_error(f"Processing printer: {printer_name}")
+
                     # Get detailed printer info
-                    h_printer = win32print.OpenPrinter(printer[2])
+                    h_printer = win32print.OpenPrinter(printer_name)
                     try:
                         printer_info = win32print.GetPrinter(h_printer, 2)
                         status = printer_info['Status']
                         attributes = printer_info['Attributes']
 
-                        # Check if printer is network printer
                         is_network = bool(attributes & win32print.PRINTER_ATTRIBUTE_NETWORK)
-                        
-                        # Check various status flags
                         is_ready = (status == 0 or 
                                   status & win32print.PRINTER_STATUS_POWER_SAVE or 
                                   status & win32print.PRINTER_STATUS_WARMING_UP)
-                        
-                        # Get more detailed status information
+
                         detailed_status = {
                             'isNetwork': is_network,
                             'status': status,
@@ -59,26 +73,31 @@ class PrintHandler:
                         }
 
                         printers.append({
-                            'name': printer[2],
-                            'isDefault': printer[2] == win32print.GetDefaultPrinter(),
+                            'name': printer_name,
+                            'isDefault': printer_name == win32print.GetDefaultPrinter(),
                             **detailed_status
                         })
+                        
+                        log_error(f"Successfully processed printer: {printer_name}")
+                        
                     finally:
                         win32print.ClosePrinter(h_printer)
                 except Exception as e:
-                    print(f"Error getting details for printer {printer[2]}: {str(e)}")
+                    log_error(f"Error processing printer {printer[2]}: {str(e)}")
                     # Add printer with basic info if detailed info fails
                     printers.append({
                         'name': printer[2],
                         'isDefault': printer[2] == win32print.GetDefaultPrinter(),
-                        'status': -1,  # Unknown status
+                        'status': -1,
                         'isNetwork': False,
                         'isReady': False
                     })
 
             return json.dumps({'success': True, 'printers': printers})
         except Exception as e:
-            return json.dumps({'success': False, 'error': str(e)})
+            error_msg = f"Fatal error in get_printers: {str(e)}"
+            log_error(error_msg)
+            return json.dumps({'success': False, 'error': error_msg})
 
     @staticmethod
     def set_default_printer(printer_name):
@@ -145,25 +164,30 @@ class PrintHandler:
             return -1  # Unknown status
 
 if __name__ == "__main__":
-    handler = PrintHandler()
-    
-    if len(sys.argv) < 2:
-        print(json.dumps({'success': False, 'error': 'No command provided'}))
-        sys.exit(1)
+    try:
+        handler = PrintHandler()
+        
+        if len(sys.argv) < 2:
+            print(json.dumps({'success': False, 'error': 'No command provided'}))
+            sys.exit(1)
 
-    command = sys.argv[1]
-    
-    if command == "get_printers":
-        print(handler.get_printers())
-    elif command == "set_default":
-        if len(sys.argv) < 3:
-            print(json.dumps({'success': False, 'error': 'No printer name provided'}))
-            sys.exit(1)
-        print(handler.set_default_printer(sys.argv[2]))
-    elif command == "print":
-        if len(sys.argv) < 4:
-            print(json.dumps({'success': False, 'error': 'Missing file path or printer name'}))
-            sys.exit(1)
-        print(handler.print_file(sys.argv[2], sys.argv[3]))
-    else:
-        print(json.dumps({'success': False, 'error': 'Invalid command'})) 
+        command = sys.argv[1]
+        
+        if command == "get_printers":
+            print(handler.get_printers())
+        elif command == "set_default":
+            if len(sys.argv) < 3:
+                print(json.dumps({'success': False, 'error': 'No printer name provided'}))
+                sys.exit(1)
+            print(handler.set_default_printer(sys.argv[2]))
+        elif command == "print":
+            if len(sys.argv) < 4:
+                print(json.dumps({'success': False, 'error': 'Missing file path or printer name'}))
+                sys.exit(1)
+            print(handler.print_file(sys.argv[2], sys.argv[3]))
+        else:
+            print(json.dumps({'success': False, 'error': 'Invalid command'}))
+    except Exception as e:
+        log_error(f"Main execution error: {str(e)}")
+        print(json.dumps({'success': False, 'error': str(e)}))
+        sys.exit(2) 

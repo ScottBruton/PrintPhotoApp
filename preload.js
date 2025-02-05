@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld("electron", {
     printFile: (filePath, printerName) =>
       ipcRenderer.invoke("win-print-file", { filePath, printerName }),
     getTempFile: (filename) => ipcRenderer.invoke("get-temp-file", filename),
+    updatePrinterStatuses: () => ipcRenderer.invoke("update-printer-statuses"),
   },
   createTempPDF: (htmlContent) =>
     ipcRenderer.invoke("create-temp-pdf", htmlContent),

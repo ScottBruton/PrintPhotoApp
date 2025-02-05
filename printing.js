@@ -16,6 +16,10 @@ class PrintManager {
     this.setupToastContainer();
     this.printerStatusInterval = null;
 
+    // Add status check counter
+    this.statusCheckCount = 0;
+    this.maxStatusChecks = 10;
+
     // Remove initializePrinterMonitoring from constructor
     // We'll call it after dialog is created instead
 
@@ -28,6 +32,9 @@ class PrintManager {
   }
 
   initializePrinterMonitoring() {
+    // Reset the counter when starting monitoring
+    this.statusCheckCount = 0;
+
     // Clear any existing interval
     if (this.printerStatusInterval) {
       clearInterval(this.printerStatusInterval);
@@ -38,7 +45,12 @@ class PrintManager {
 
     // Set up periodic printer status updates
     this.printerStatusInterval = setInterval(() => {
-      this.updatePrinterStatuses();
+      if (this.statusCheckCount < this.maxStatusChecks) {
+        this.updatePrinterStatuses();
+      } else {
+        clearInterval(this.printerStatusInterval);
+        this.printerStatusInterval = null;
+      }
     }, 5000); // Update every 5 seconds
   }
 
@@ -88,52 +100,43 @@ class PrintManager {
   }
   
   getPrinterStatusText(status, printerName) {
-    // List of known virtual printers
-    const virtualPrinters = [
-      "Microsoft Print to PDF",
-      "Microsoft XPS Document Writer",
-      "OneNote",
-      "OneNote for Windows 10",
-      "Fax",
-      "Adobe PDF",
-    ];
-
-    // Check if this is a virtual printer
-    if (virtualPrinters.some((vp) => printerName.includes(vp))) {
-      return { text: "Virtual Printer", ready: true };
-    }
-
-    // Windows printer status codes for physical printers
-    const statusCodes = {
-      0: { text: "Ready", ready: true },
-      1: { text: "Paused", ready: false },
-      2: { text: "Error", ready: false },
-      3: { text: "Pending Deletion", ready: false },
-      4: { text: "Paper Jam", ready: false },
-      5: { text: "Paper Out", ready: false },
-      6: { text: "Manual Feed", ready: false },
-      7: { text: "Paper Problem", ready: false },
-      8: { text: "Offline", ready: false },
-      9: { text: "IO Active", ready: true },
-      10: { text: "Busy", ready: true },
-      11: { text: "Printing", ready: true },
-      12: { text: "Output Bin Full", ready: false },
-      13: { text: "Not Available", ready: false },
-      14: { text: "Waiting", ready: true },
-      15: { text: "Processing", ready: true },
-      16: { text: "Initializing", ready: false },
-      17: { text: "Warming Up", ready: false },
-      18: { text: "Toner Low", ready: true },
-      19: { text: "No Toner", ready: false },
-      20: { text: "Page Punt", ready: false },
-      21: { text: "User Intervention", ready: false },
-      22: { text: "Out of Memory", ready: false },
-      23: { text: "Door Open", ready: false },
-      24: { text: "Server Unknown", ready: false },
-      25: { text: "Power Save", ready: true },
+    // Status mapping
+    const statusMap = {
+        0: { text: "Ready", ready: true },
+        1: { text: "Paused", ready: false },
+        2: { text: "Error", ready: false },
+        3: { text: "Pending Deletion", ready: false },
+        4: { text: "Paper Jam", ready: false },
+        5: { text: "Paper Out", ready: false },
+        6: { text: "Manual Feed", ready: false },
+        7: { text: "Paper Problem", ready: false },
+        8: { text: "Offline", ready: false },
+        9: { text: "IO Active", ready: true },
+        10: { text: "Busy", ready: true },
+        11: { text: "Printing", ready: true },
+        12: { text: "Output Bin Full", ready: false },
+        13: { text: "Not Available", ready: false },
+        14: { text: "Waiting", ready: true },
+        15: { text: "Processing", ready: true },
+        16: { text: "Initializing", ready: true },
+        17: { text: "Warming Up", ready: true },
+        18: { text: "Toner Low", ready: true },
+        19: { text: "No Toner", ready: false },
+        20: { text: "Page Punt", ready: false },
+        21: { text: "User Intervention Required", ready: false },
+        22: { text: "Out of Memory", ready: false },
+        23: { text: "Door Open", ready: false },
+        24: { text: "Server Unknown", ready: false },
+        25: { text: "Power Save", ready: true }
     };
 
-    return statusCodes[status] || { text: "Unknown", ready: false };
+    // If status is in power save mode or warming up, consider it "Ready"
+    if (status === 25 || status === 17) {
+        return { text: "Ready", ready: true };
+    }
+
+    // Return mapped status or Unknown if status code isn't recognized
+    return statusMap[status] || { text: "Unknown", ready: false };
   }
 
   updatePrinterDropdown() {
@@ -262,7 +265,10 @@ class PrintManager {
 
   async executePrint() {
     try {
+      // Get temp file path from electron
       const tempPath = await window.electron.winPrint.getTempFile('currentLayout.html');
+      console.log("Temp file path:", tempPath);
+
       // Gather all settings
       const settings = {
         printer: this.dialog.querySelector("#printerSelect").value,
@@ -283,7 +289,7 @@ class PrintManager {
         return;
       }
 
-      // Send to print using Windows printing with existing temp file
+      // Send to print using Windows printing
       const result = await window.electron.winPrint.printFile(tempPath, settings.printer);
       console.log("Print result:", result);
 
@@ -671,12 +677,22 @@ class PrintManager {
   }
 
   async updatePrinterStatuses() {
+    // Check if we've exceeded the maximum status checks
+    if (this.statusCheckCount >= this.maxStatusChecks) {
+      console.log("Maximum printer status checks reached");
+      if (this.printerStatusInterval) {
+        clearInterval(this.printerStatusInterval);
+        this.printerStatusInterval = null;
+      }
+      return;
+    }
+
     try {
-      // Get fresh printer data from Windows API
-      const result = await window.electron.winPrint.getPrinters();
+      console.log("Updating printer statuses...");
+      const result = await window.electron.winPrint.updatePrinterStatuses();
+      
       if (result.success) {
-        // Update the printer list with new status information
-        this.printerList = result.printers.map((printer) => ({
+        this.printerList = result.printers.map(printer => ({
           ...printer,
           statusText: this.getPrinterStatusText(printer.status, printer.name),
         }));
@@ -685,24 +701,22 @@ class PrintManager {
         this.updatePrinterDropdown();
 
         // If a printer is selected, check if its status has changed
-        const selectedPrinter =
-          this.dialog?.querySelector("#printerSelect")?.value;
+        const selectedPrinter = this.dialog?.querySelector("#printerSelect")?.value;
         if (selectedPrinter) {
-          const printer = this.printerList.find(
-            (p) => p.name === selectedPrinter
-          );
+          const printer = this.printerList.find(p => p.name === selectedPrinter);
           if (printer && !printer.statusText.ready) {
-            // Optionally notify user if selected printer becomes unavailable
-            console.warn(
-              `Selected printer "${selectedPrinter}" status: ${printer.statusText.text}`
-            );
+            console.warn(`Selected printer "${selectedPrinter}" status: ${printer.statusText.text}`);
           }
         }
+
+        // Increment the status check counter
+        this.statusCheckCount++;
       } else {
-        console.error("Failed to update printer statuses:", result.error);
+        throw new Error(result.error || "Failed to get printer statuses");
       }
     } catch (error) {
-      console.error("Error updating printer statuses:", error);
+      console.error("Failed to update printer statuses:", error.message);
+      this.showToast(`Error: ${error.message}`);
     }
   }
 

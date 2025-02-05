@@ -250,125 +250,92 @@ ipcMain.handle("save-pdf", async (event, { data, defaultPath }) => {
   }
 });
 
-// Add these handlers after your existing ipcMain handlers
-ipcMain.handle("win-get-printers", async () => {
-  try {
-    const pythonProcess = spawn("python", ["print_handler.py", "get_printers"]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
-    });
-    return JSON.parse(result);
-  } catch (error) {
-    console.error("Error getting Windows printers:", error);
-    return { success: false, error: error.message };
+// Update the getPrintHandlerPath function
+const getPrintHandlerPath = () => {
+  const isDev = !app.isPackaged;
+  const isWin = process.platform === 'win32';
+  
+  if (isDev) {
+    return isWin ? 
+      path.join(__dirname, 'dist', 'print_handler.exe') :
+      path.join(__dirname, 'print_handler.py');
   }
-});
+  return path.join(process.resourcesPath, 'print_handler.exe');
+};
 
-ipcMain.handle("win-set-default-printer", async (event, printerName) => {
-  try {
-    const pythonProcess = spawn("python", [
-      "print_handler.py",
-      "set_default",
-      printerName,
-    ]);
-    const result = await new Promise((resolve, reject) => {
-      let data = "";
-      pythonProcess.stdout.on("data", (chunk) => {
-        data += chunk;
-      });
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data}`);
-      });
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Python process exited with code ${code}`));
-        } else {
-          resolve(data);
-        }
-      });
-    });
-    return JSON.parse(result);
-  } catch (error) {
-    console.error("Error setting default printer:", error);
-    return { success: false, error: error.message };
+// Helper function to run print handler
+const runPrintHandler = async (command) => {
+  const handlerPath = getPrintHandlerPath();
+  console.log('Print handler path:', handlerPath);
+  
+  if (!fs.existsSync(handlerPath)) {
+    throw new Error(`Print handler not found at: ${handlerPath}`);
   }
-});
 
-ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
-  try {
-    console.log("Printing file:", filePath);
+  const isExe = handlerPath.endsWith('.exe');
+  const childProcess = isExe ? 
+    spawn(handlerPath, [command]) :
+    spawn('python', [handlerPath, command]);
 
-    // Create a hidden window for printing
-    const printWindow = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+
+    childProcess.stdout.on('data', (data) => {
+      stdout += data;
+    });
+
+    childProcess.stderr.on('data', (data) => {
+      stderr += data;
+    });
+
+    childProcess.on('close', (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(stdout);
+          resolve(result);
+        } catch (error) {
+          reject(new Error(`Failed to parse print handler output: ${error.message}`));
+        }
+      } else {
+        reject(new Error(`Print handler exited with code ${code}: ${stderr}`));
       }
     });
 
-    // Use loadFile for app files, but loadURL with file:// protocol for temp files
-    await printWindow.loadURL(`file://${filePath}`);
-
-    // Wait a bit for content to load
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Return a promise that resolves when printing is complete
-    return new Promise((resolve) => {
-      printWindow.webContents.print(
-        {
-          silent: false,
-          printBackground: true,
-          deviceName: printerName,
-          color: true,
-          margins: { marginType: "none" },
-          pageSize: "A4",
-          landscape: false,
-          scaleFactor: 100,
-          copies: 1,
-          collate: true,
-        },
-        (success, errorType) => {
-          console.log("Print callback:", success, errorType);
-          printWindow.close();
-
-          if (success) {
-            resolve({
-              success: true,
-              message: "Print job sent successfully",
-            });
-          } else {
-            resolve({
-              success: false,
-              error: errorType || "Print was cancelled or failed",
-            });
-          }
-        }
-      );
+    childProcess.on('error', (error) => {
+      reject(new Error(`Failed to start print handler: ${error.message}`));
     });
+  });
+};
+
+// Update the handlers to use the helper function
+ipcMain.handle("win-get-printers", async () => {
+  try {
+    return await runPrintHandler("get_printers");
   } catch (error) {
-    console.error("Error in print handler:", error);
-    return {
-      success: false,
-      error: error.message || "Print failed",
-      details: error.toString(),
-    };
+    console.error("Error getting printers:", error);
+    return { success: false, error: error.message };
   }
 });
 
+ipcMain.handle("update-printer-statuses", async () => {
+  try {
+    return await runPrintHandler("get_printers");
+  } catch (error) {
+    console.error("Error updating printer statuses:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Update win-print-file handler
+ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
+  try {
+    return await runPrintHandler("print", [filePath, printerName]);
+  } catch (error) {
+    console.error("Error printing file:", error);
+    return { success: false, error: error.message };
+  }
+});
 
 ipcMain.handle('manual-update-check', async () => {
     console.log("Manual update check requested");   
