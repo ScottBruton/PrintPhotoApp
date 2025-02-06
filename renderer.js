@@ -209,7 +209,7 @@ class PhotoLayoutEditor {
     this.addPageBtn.addEventListener("click", () => this.addNewPage());
     this.prevPageBtn.addEventListener("click", () => this.navigatePage(-1));
     this.nextPageBtn.addEventListener("click", () => this.navigatePage(1));
-    this.manualUpdateCheckBtn.addEventListener("click", () => this.manualUpdateCheck());
+   // this.manualUpdateCheckBtn.addEventListener("click", () => this.manualUpdateCheck());
 
     // Add reset button event listener
     document
