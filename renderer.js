@@ -482,6 +482,43 @@ class PhotoLayoutEditor {
             await window.electron.manualUpdateCheck();
         });
     }
+
+    // Enable/disable custom size inputs
+    customSizeCheckbox.addEventListener("change", (e) => {
+        customWidthInput.disabled = !e.target.checked;
+        customHeightInput.disabled = !e.target.checked;
+        applyCustomSizeBtn.disabled = !e.target.checked;
+        
+        if (e.target.checked) {
+            customWidthInput.focus();
+        }
+    });
+
+    // Add input event listeners for validation
+    [customWidthInput, customHeightInput].forEach(input => {
+        input.addEventListener("input", (e) => {
+            // Allow typing and validate
+            let value = e.target.value;
+            
+            // Remove non-numeric characters
+            value = value.replace(/[^\d]/g, '');
+            
+            // Convert to number and validate range
+            const num = parseInt(value);
+            const isWidth = e.target.id === "customWidth";
+            const max = isWidth ? 210 : 297; // A4 dimensions
+            
+            if (num > max) {
+                value = max;
+            }
+            
+            // Update input value
+            e.target.value = value;
+            
+            // Enable/disable apply button based on valid input
+            applyCustomSizeBtn.disabled = !this.validateCustomSize();
+        });
+    });
   }
 
   validateInput(input, min, max, validationMsg) {
@@ -1711,6 +1748,13 @@ class PhotoLayoutEditor {
 
     // Update layout state after reset
     this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+  }
+
+  validateCustomSize() {
+    const width = parseInt(document.getElementById("customWidth").value);
+    const height = parseInt(document.getElementById("customHeight").value);
+    
+    return width > 0 && width <= 210 && height > 0 && height <= 297;
   }
 }
 

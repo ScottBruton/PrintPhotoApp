@@ -789,3 +789,29 @@ body {
     background-color: #ccc;
     cursor: not-allowed;
 }
+
+.custom-size-inputs input[type="number"] {
+    width: 80px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.custom-size-inputs input[type="number"]:focus {
+    outline: none;
+    border-color: #0056a0;
+    box-shadow: 0 0 0 2px rgba(0, 86, 160, 0.2);
+}
+
+.custom-size-inputs input[type="number"]:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+/* Remove spinner buttons if desired */
+.custom-size-inputs input[type="number"]::-webkit-inner-spin-button,
+.custom-size-inputs input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1; /* Set to 0 to hide spinners */
+    cursor: pointer;
+}
