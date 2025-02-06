@@ -110,34 +110,81 @@ class PrintHandler:
     @staticmethod
     def print_file(file_path, printer_name):
         try:
-            if not os.path.exists(file_path):
+            log_error(f"Print request received - File: {file_path}, Printer: {printer_name}")
+            
+            # Log file existence check
+            file_exists = os.path.exists(file_path)
+            log_error(f"File exists check: {file_exists}")
+            if not file_exists:
+                error_msg = f"File not found: {file_path}"
+                log_error(error_msg)
                 return json.dumps({
                     'success': False, 
-                    'error': f"File not found: {file_path}"
+                    'error': error_msg
                 })
 
             # Set the printer
             if printer_name:
-                win32print.SetDefaultPrinter(printer_name)
+                try:
+                    win32print.SetDefaultPrinter(printer_name)
+                    log_error(f"Default printer set to: {printer_name}")
+                except Exception as e:
+                    error_msg = f"Error setting printer: {str(e)}"
+                    log_error(error_msg)
+                    return json.dumps({
+                        'success': False,
+                        'error': error_msg
+                    })
 
-            # Use ShellExecute with "printto" verb to print HTML properly
-            win32api.ShellExecute(
-                0,
-                "printto",
-                file_path,
-                f'"{printer_name}"',
-                ".",
-                0
-            )
+            try:
+                # Open printer
+                log_error("Opening printer...")
+                printer_handle = win32print.OpenPrinter(printer_name)
+                
+                try:
+                    # Start document
+                    log_error("Starting document...")
+                    win32print.StartDocPrinter(printer_handle, 1, ("HTML Document", None, "RAW"))
+                    
+                    try:
+                        # Start page
+                        win32print.StartPagePrinter(printer_handle)
+                        
+                        # Write file contents
+                        with open(file_path, 'rb') as f:
+                            data = f.read()
+                            win32print.WritePrinter(printer_handle, data)
+                        
+                        # End page
+                        win32print.EndPagePrinter(printer_handle)
+                        
+                    finally:
+                        # End document
+                        win32print.EndDocPrinter(printer_handle)
+                finally:
+                    # Close printer
+                    win32print.ClosePrinter(printer_handle)
+                
+                log_error("Print command executed successfully")
+                return json.dumps({
+                    'success': True,
+                    'message': "Print job sent successfully"
+                })
+                
+            except Exception as e:
+                error_msg = f"Error executing print command: {str(e)}"
+                log_error(error_msg)
+                return json.dumps({
+                    'success': False,
+                    'error': error_msg
+                })
 
-            return json.dumps({
-                'success': True,
-                'message': "Print job sent successfully"
-            })
         except Exception as e:
+            error_msg = f"General print error: {str(e)}"
+            log_error(error_msg)
             return json.dumps({
                 'success': False,
-                'error': str(e)
+                'error': error_msg
             })
 
     @staticmethod
@@ -172,6 +219,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
         command = sys.argv[1]
+        log_error(f"Received command: {command} with args: {sys.argv[2:]}")
         
         if command == "get_printers":
             print(handler.get_printers())

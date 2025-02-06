@@ -263,77 +263,108 @@ const getPrintHandlerPath = () => {
   return path.join(process.resourcesPath, 'print_handler.exe');
 };
 
-// Helper function to run print handler
-const runPrintHandler = async (command) => {
-  const handlerPath = getPrintHandlerPath();
-  console.log('Print handler path:', handlerPath);
-  
-  if (!fs.existsSync(handlerPath)) {
-    throw new Error(`Print handler not found at: ${handlerPath}`);
-  }
+// Add this helper function
+const runPrintHandler = async (command, ...args) => {
+    const handlerPath = getPrintHandlerPath();
+    console.log('Print handler command:', command, 'args:', args);
+    
+    return new Promise((resolve, reject) => {
+        const process = spawn(handlerPath, [command, ...args]);
+        let stdout = '';
+        let stderr = '';
 
-  const isExe = handlerPath.endsWith('.exe');
-  const childProcess = isExe ? 
-    spawn(handlerPath, [command]) :
-    spawn('python', [handlerPath, command]);
+        process.stdout.on('data', (data) => {
+            stdout += data;
+        });
 
-  return new Promise((resolve, reject) => {
-    let stdout = '';
-    let stderr = '';
+        process.stderr.on('data', (data) => {
+            stderr += data;
+            console.error('Print handler stderr:', data.toString());
+        });
 
-    childProcess.stdout.on('data', (data) => {
-      stdout += data;
+        process.on('close', (code) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdout);
+                    resolve(result);
+                } catch (error) {
+                    reject(new Error(`Failed to parse print handler output: ${stdout}`));
+                }
+            } else {
+                reject(new Error(`Print handler exited with code ${code}: ${stderr}`));
+            }
+        });
     });
-
-    childProcess.stderr.on('data', (data) => {
-      stderr += data;
-    });
-
-    childProcess.on('close', (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(stdout);
-          resolve(result);
-        } catch (error) {
-          reject(new Error(`Failed to parse print handler output: ${error.message}`));
-        }
-      } else {
-        reject(new Error(`Print handler exited with code ${code}: ${stderr}`));
-      }
-    });
-
-    childProcess.on('error', (error) => {
-      reject(new Error(`Failed to start print handler: ${error.message}`));
-    });
-  });
 };
 
-// Update the handlers to use the helper function
-ipcMain.handle("win-get-printers", async () => {
-  try {
-    return await runPrintHandler("get_printers");
-  } catch (error) {
-    console.error("Error getting printers:", error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle("update-printer-statuses", async () => {
-  try {
-    return await runPrintHandler("get_printers");
-  } catch (error) {
-    console.error("Error updating printer statuses:", error);
-    return { success: false, error: error.message };
-  }
-});
-
-// Update win-print-file handler
+// Update the win-print-file handler
 ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
   try {
-    return await runPrintHandler("print", [filePath, printerName]);
+    console.log("Printing file:", { filePath, printerName });
+
+    // Don't join with app path - filePath is already absolute
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // Create a hidden window for printing
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Load the file using proper file URL format
+    const fileUrl = `file:///${filePath.replace(/\\/g, '/')}`;
+    console.log("Loading file URL:", fileUrl);
+    
+    await printWindow.loadURL(fileUrl);
+
+    // Wait a bit for content to load
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Return a promise that resolves when printing is complete
+    return new Promise((resolve) => {
+      printWindow.webContents.print(
+        {
+          silent: false,
+          printBackground: true,
+          deviceName: printerName,
+          color: true,
+          margins: { marginType: "none" },
+          pageSize: "A4",
+          landscape: false,
+          scaleFactor: 100,
+          copies: 1,
+          collate: true,
+        },
+        (success, errorType) => {
+          console.log("Print callback:", success, errorType);
+          printWindow.close();
+
+          if (success) {
+            resolve({
+              success: true,
+              message: "Print job sent successfully",
+            });
+          } else {
+            resolve({
+              success: false,
+              error: errorType || "Print was cancelled or failed",
+            });
+          }
+        }
+      );
+    });
   } catch (error) {
-    console.error("Error printing file:", error);
-    return { success: false, error: error.message };
+    console.error("Error in print handler:", error);
+    return {
+      success: false,
+      error: error.message || "Print failed",
+      details: error.toString(),
+    };
   }
 });
 
@@ -458,4 +489,23 @@ ipcMain.handle("restart-app", () => {
 // Add this with your other ipcMain handlers
 ipcMain.handle("get-app-version", () => {
   return app.getVersion();
+});
+
+// Add these handlers back after the runPrintHandler function
+ipcMain.handle("win-get-printers", async () => {
+    try {
+        return await runPrintHandler("get_printers");
+    } catch (error) {
+        console.error("Error getting printers:", error);
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle("update-printer-statuses", async () => {
+    try {
+        return await runPrintHandler("get_printers");
+    } catch (error) {
+        console.error("Error updating printer statuses:", error);
+        return { success: false, error: error.message };
+    }
 });

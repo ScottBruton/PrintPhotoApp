@@ -88,9 +88,12 @@ class LayoutRenderer {
 
         // Save to temp file using electron API
         try {
-            await window.electron.invoke('save-temp-html', html);
+            const tempPath = await window.electron.invoke('save-temp-html', html);
+            console.log('Layout HTML saved to:', tempPath);
+            return tempPath;
         } catch (error) {
             console.error('Error saving layout HTML:', error);
+            throw error;
         }
     }
 

@@ -8,21 +8,17 @@ function setupIpcHandlers() {
     // Handler for saving HTML to temp file
     ipcMain.handle('save-temp-html', async (event, html) => {
         try {           
-            const tempPath = path.join(os.tmpdir(), `currentLayout.html`);
-            const tempDir = path.join(__dirname, 'temp');
-            // Create temp directory if it doesn't exist
-            await fs.mkdir(tempDir, { recursive: true });
+            // Use system temp directory
+            const tempPath = path.join(os.tmpdir(), 'currentLayout.html');
             
-            const filePath = path.join(tempDir, 'currentLayout.html');
-
-            await fs.writeFile(filePath, html, 'utf8');
+            // Write directly to temp directory
             await fs.writeFile(tempPath, html, 'utf8');
-            console.log('Saved layout HTML to:', filePath);
-            console.log('Saved layout HTML to:', tempDir);
-            return true;
+            console.log('Saved layout HTML to:', tempPath);
+            
+            return tempPath; // Return the path where the file was saved
         } catch (error) {
             console.error('Error saving temp HTML:', error);
-            return false;
+            throw error; // Propagate error to renderer
         }
     });
 }
