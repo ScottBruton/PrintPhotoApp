@@ -12,6 +12,26 @@
     />
   </head>
   <body>
+    <!-- Update Notification Banner -->
+    <div id="updateBanner" class="update-banner hidden">
+      <div class="update-content">
+        <div class="update-icon">⬇️</div>
+        <div class="update-text">
+          <strong id="updateTitle">Update Available</strong>
+          <p id="updateMessage">A new version is available</p>
+          <div id="updateProgress" class="update-progress-bar hidden">
+            <div id="updateProgressFill" class="update-progress-fill"></div>
+            <span id="updateProgressText" class="update-progress-text">0%</span>
+          </div>
+        </div>
+        <div class="update-actions">
+          <button id="updateDownloadBtn" class="update-btn update-btn-primary">Download</button>
+          <button id="updateInstallBtn" class="update-btn update-btn-primary hidden">Install & Restart</button>
+          <button id="updateLaterBtn" class="update-btn update-btn-secondary">Later</button>
+        </div>
+      </div>
+    </div>
+
     <div class="app-header">
       <img
         src="asset/scoBroPrints.svg"
@@ -210,5 +230,122 @@
     <script type="module" src="renderer.js"></script>
     <script src="printPreview.js"></script>
     <script src="printing.js"></script>
+    
+    <!-- Update Handler Script -->
+    <script>
+      // Update UI Controller
+      (function() {
+        const updateBanner = document.getElementById('updateBanner');
+        const updateTitle = document.getElementById('updateTitle');
+        const updateMessage = document.getElementById('updateMessage');
+        const updateProgress = document.getElementById('updateProgress');
+        const updateProgressFill = document.getElementById('updateProgressFill');
+        const updateProgressText = document.getElementById('updateProgressText');
+        const downloadBtn = document.getElementById('updateDownloadBtn');
+        const installBtn = document.getElementById('updateInstallBtn');
+        const laterBtn = document.getElementById('updateLaterBtn');
+        
+        let currentUpdateInfo = null;
+        
+        // Show banner
+        function showBanner() {
+          updateBanner.classList.remove('hidden');
+          // Adjust page container to account for banner height
+          document.getElementById('pageContainer').style.marginTop = '60px';
+        }
+        
+        // Hide banner
+        function hideBanner() {
+          updateBanner.classList.add('hidden');
+          document.getElementById('pageContainer').style.marginTop = '0';
+        }
+        
+        // Update checking
+        window.electron.onUpdateChecking(() => {
+          console.log('Checking for updates...');
+        });
+        
+        // Update available
+        window.electron.onUpdateAvailable((info) => {
+          console.log('Update available:', info);
+          currentUpdateInfo = info;
+          updateTitle.textContent = `Version ${info.version} Available`;
+          updateMessage.textContent = 'A new version is ready to download';
+          downloadBtn.classList.remove('hidden');
+          installBtn.classList.add('hidden');
+          updateProgress.classList.add('hidden');
+          showBanner();
+        });
+        
+        // Update not available
+        window.electron.onUpdateNotAvailable((info) => {
+          console.log('No updates available');
+          // Don't show banner if no update
+        });
+        
+        // Update error
+        window.electron.onUpdateError((error) => {
+          console.error('Update error:', error);
+          updateTitle.textContent = 'Update Error';
+          updateMessage.textContent = error.message || 'Failed to check for updates';
+          downloadBtn.classList.add('hidden');
+          installBtn.classList.add('hidden');
+          showBanner();
+          // Auto-hide after 5 seconds
+          setTimeout(hideBanner, 5000);
+        });
+        
+        // Download progress
+        window.electron.onUpdateDownloadProgress((progress) => {
+          const percent = Math.round(progress.percent);
+          updateProgress.classList.remove('hidden');
+          updateProgressFill.style.width = `${percent}%`;
+          updateProgressText.textContent = `${percent}%`;
+          updateMessage.textContent = `Downloading update... (${formatBytes(progress.bytesPerSecond)}/s)`;
+        });
+        
+        // Update downloaded
+        window.electron.onUpdateDownloaded((info) => {
+          console.log('Update downloaded:', info);
+          updateTitle.textContent = 'Update Ready';
+          updateMessage.textContent = `Version ${info.version} has been downloaded`;
+          updateProgress.classList.add('hidden');
+          downloadBtn.classList.add('hidden');
+          installBtn.classList.remove('hidden');
+        });
+        
+        // Update dismissed
+        window.electron.onUpdateDismissed(() => {
+          hideBanner();
+        });
+        
+        // Button handlers
+        downloadBtn.addEventListener('click', () => {
+          console.log('Download button clicked');
+          downloadBtn.disabled = true;
+          downloadBtn.textContent = 'Downloading...';
+          window.electron.downloadUpdate();
+        });
+        
+        installBtn.addEventListener('click', () => {
+          console.log('Install button clicked');
+          window.electron.installUpdate();
+        });
+        
+        laterBtn.addEventListener('click', () => {
+          console.log('Remind later clicked');
+          window.electron.remindLater();
+        });
+        
+        // Helper function
+        function formatBytes(bytes) {
+          if (bytes === 0) return '0 B';
+          const k = 1024;
+          const sizes = ['B', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return `${Math.round(bytes / Math.pow(k, i) * 100) / 100} ${sizes[i]}`;
+        }
+      })();
+    </script>
   </body>
 </html>

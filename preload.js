@@ -54,5 +54,17 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.removeAllListeners(channel);
     }
   },
-
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates-manual'),
+  // Update event listeners
+  onUpdateChecking: (callback) => ipcRenderer.on('update-checking', () => callback()),
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
+  onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, info) => callback(info)),
+  onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
+  onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (event, progress) => callback(progress)),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info)),
+  onUpdateDismissed: (callback) => ipcRenderer.on('update-dismissed', () => callback()),
+  // Update actions
+  downloadUpdate: () => ipcRenderer.send('update-download-now'),
+  installUpdate: () => ipcRenderer.send('update-install-now'),
+  remindLater: () => ipcRenderer.send('update-remind-later'),
 });

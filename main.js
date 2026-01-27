@@ -373,20 +373,20 @@ ipcMain.handle("win-print-file", async (event, { filePath, printerName }) => {
 // App startup
 app.whenReady().then(async () => {
     console.log("App ready");
-    const updateAvailable = await isUpdateAvailable();
-    if (updateAvailable) {
-        // Only check for updates in production mode
-        if (app.isPackaged) {
-            // Wait a few seconds before checking for updates
-            setTimeout(() => {
-                // Fetch GitHub key and set up IPC handlers
-                fetchGitHubKey(ipcMain);
-                // Start checking for updates and pass createWindow as callback
-                checkForUpdates(ipcMain, createWindow);
-            }, 3000); // Wait 3 seconds after app starts
-        }
+    
+    // ALWAYS create main window first - users need to see the app
+    createWindow();
+    
+    // Check for updates in background (only in production)
+    if (app.isPackaged) {
+        // Wait a bit for main window to load, then check for updates silently
+        setTimeout(() => {
+            console.log('Starting background update check...');
+            const { initAutoUpdater } = require('./updateHandler/update.js');
+            initAutoUpdater(ipcMain, mainWindow);
+        }, 5000); // 5 seconds after app starts
     } else {
-        createWindow();
+        console.log('Development mode - auto-updates disabled');
     }
 });
 
@@ -471,4 +471,16 @@ ipcMain.handle("restart-app", () => {
 // Add this with your other ipcMain handlers
 ipcMain.handle("get-app-version", () => {
   return app.getVersion();
+});
+
+// Manual update check IPC handler (for "Check for Updates" menu/button)
+ipcMain.handle('check-for-updates-manual', async () => {
+  try {
+    console.log('Manual update check requested from renderer');
+    const { checkForUpdatesManual } = require('./updateHandler/update.js');
+    return await checkForUpdatesManual();
+  } catch (error) {
+    console.error('Error in manual update check:', error);
+    return { success: false, error: error.message };
+  }
 });

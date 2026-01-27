@@ -1,0 +1,107 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.4, v2.1.0, etc.
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    permissions:
+      contents: write  # Required to create releases and upload assets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Node dependencies
+        run: npm ci
+      
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+      
+      - name: Build Python executable
+        run: pyinstaller print_handler.spec
+      
+      - name: Verify Python executable exists
+        run: |
+          if (!(Test-Path "dist/print_handler.exe")) {
+            Write-Error "print_handler.exe not found in dist/"
+            exit 1
+          }
+          Write-Host "✅ Python executable built successfully"
+        shell: pwsh
+      
+      - name: Build Electron app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build
+      
+      - name: List build artifacts
+        run: |
+          Write-Host "=== Build Artifacts ==="
+          Get-ChildItem -Path "dist" -Recurse | Select-Object FullName, Length | Format-Table
+        shell: pwsh
+      
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+        shell: pwsh
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.exe
+            dist/*.yml
+            dist/*.yaml
+          draft: false
+          prerelease: false
+          name: Release ${{ steps.extract_version.outputs.VERSION }}
+          body: |
+            ## 🎉 PrintPhotoApp ${{ steps.extract_version.outputs.VERSION }}
+            
+            ### 📦 Installation
+            Download `PrintPhotoApp-Setup-${{ steps.extract_version.outputs.VERSION }}.exe` and run it.
+            
+            ### ⬆️ Auto-Update
+            If you have a previous version installed, the app will automatically notify you of this update.
+            
+            ### 📝 Changes
+            See commit history for details.
+            
+            ---
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.extract_version.outputs.VERSION }}...v${{ steps.extract_version.outputs.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            dist/**/*.log
+            *.log
+          retention-days: 7
