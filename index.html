@@ -40,16 +40,19 @@
       />
       <div
         id="app-version"
-        style="
-          font-size: 12px;
-          color: #333;
-          margin-top: 4px;
-          text-align: center;
-        "
+        class="app-version-text"
       ></div>
       <div>
         <button id="manualUpdateCheck" class="manual-update-check-btn">Check for Updates</button>
       </div>      
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle-container">
+      <button id="themeToggle" class="theme-toggle-btn" title="Toggle Dark/Light Theme">
+        <img src="asset/sun.svg" alt="Light Mode" class="theme-icon sun-icon" />
+        <img src="asset/moon.svg" alt="Dark Mode" class="theme-icon moon-icon" />
+      </button>
     </div>
 
     <div class="toolbar">
@@ -240,6 +243,34 @@
     <script src="printPreview.js"></script>
     <script src="printing.js"></script>
     
+    <!-- Theme Toggle Script -->
+    <script>
+      // Theme Toggle Controller
+      (function() {
+        const themeToggle = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+        
+        // Check for saved theme preference or default to 'light'
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', currentTheme);
+        
+        // Theme toggle handler
+        themeToggle.addEventListener('click', () => {
+          const currentTheme = htmlElement.getAttribute('data-theme');
+          const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+          
+          htmlElement.setAttribute('data-theme', newTheme);
+          localStorage.setItem('theme', newTheme);
+          
+          // Add a little animation feedback
+          themeToggle.style.transform = 'rotate(360deg)';
+          setTimeout(() => {
+            themeToggle.style.transform = 'rotate(0deg)';
+          }, 300);
+        });
+      })();
+    </script>
+
     <!-- Update Handler Script -->
     <script>
       // Update UI Controller

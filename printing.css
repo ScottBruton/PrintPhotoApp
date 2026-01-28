@@ -18,19 +18,21 @@
   gap: 20px;
   width: 100%;
   height: 100%;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .print-settings {
-  background: rgb(255, 255, 255);
+  background: var(--bg-secondary);
   padding: 20px;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--border-color);
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 5px var(--shadow-color);
   height: 100%; /* Or a fixed height, e.g., height: 500px; */
   max-height: 100vh; /* Prevent it from exceeding the viewport height */
+  transition: background-color 0.3s ease;
 }
 
 .print-settings::-webkit-scrollbar {
@@ -54,7 +56,15 @@
 .settings-section {
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #090909;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section h3 {
+  color: var(--text-primary);
+}
+
+.print-settings h2 {
+  color: var(--text-primary);
 }
 
 .section-header {
@@ -67,7 +77,7 @@
 .section-header h3 {
   margin: 0;
   font-size: 16px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .printer-search {
@@ -77,22 +87,42 @@
 .printer-search input {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.printer-search input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+[data-theme="dark"] .printer-search input:focus {
+  border-color: #42a5f5;
+  box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.3);
 }
 
 .printer-list {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
 }
 
 .copies-input input {
   width: 80px;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
 }
 
 .layout-options,
@@ -102,12 +132,20 @@
   gap: 10px;
 }
 
+.layout-options label,
+.pages-options label {
+  color: var(--text-primary);
+}
+
 .page-ranges {
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   margin-top: 8px;
   width: 100%;
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
 }
 
 .dialog-actions {
@@ -153,12 +191,13 @@
 
 .preview-toolbar {
   padding: 10px;
-  background: white;
-  border-bottom: 1px solid #ddd;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: 10px;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.3s ease;
 }
 
 .preview-content {
@@ -202,15 +241,17 @@
 .refresh-btn,
 .preview-toolbar button {
   padding: 6px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: white;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .refresh-btn:hover,
 .preview-toolbar button:hover {
-  background: #f8f9fa;
+  background: var(--hover-bg);
 }
 
 #zoomLevel {
@@ -225,16 +266,23 @@
 .quality-select {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: white;
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .quality-select:focus {
   outline: none;
   border-color: #4caf50;
   box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
+}
+
+[data-theme="dark"] .quality-select:focus {
+  border-color: #42a5f5;
+  box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.3);
 }
 
 /* Add these styles for the toast */
@@ -303,6 +351,7 @@
 /* Match the style of other radio options */
 .paper-type-options label {
   padding: 4px 0;
+  color: var(--text-primary);
 }
 
 .paper-type-options input[type="radio"]:checked + span {
@@ -311,8 +360,9 @@
 
 .print-preview-section {
   flex: 1;
-  background: #fff;
+  background: var(--bg-secondary);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s ease;
 }
