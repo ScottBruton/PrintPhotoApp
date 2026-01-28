@@ -83,9 +83,16 @@
     color: #667eea;
 }
 
-.update-btn-primary:hover {
+.update-btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.update-btn-primary:disabled {
+    background: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .update-btn-secondary {
@@ -94,7 +101,7 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.update-btn-secondary:hover {
+.update-btn-secondary:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.3);
 }
 
@@ -1069,6 +1076,12 @@ body {
 .manual-update-check-btn.loading {
     background: linear-gradient(135deg, #0056a0 0%, #00c6d0 100%);
     cursor: wait;
+    opacity: 1;
+}
+
+.manual-update-check-btn.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    cursor: default;
     opacity: 1;
 }
 

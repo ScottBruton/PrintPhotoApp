@@ -478,10 +478,9 @@ class PhotoLayoutEditor {
     // Update the manual update check binding
     const manualUpdateCheckBtn = document.getElementById('manualUpdateCheck');
     if (manualUpdateCheckBtn) {
+        const originalText = manualUpdateCheckBtn.textContent;
+        
         manualUpdateCheckBtn.addEventListener('click', async () => {
-            // Store original text
-            const originalText = manualUpdateCheckBtn.textContent;
-            
             // Show loading state
             manualUpdateCheckBtn.disabled = true;
             manualUpdateCheckBtn.innerHTML = '<span class="spinner"></span> Checking...';
@@ -489,12 +488,35 @@ class PhotoLayoutEditor {
             
             try {
                 await window.electron.manualUpdateCheck();
-            } finally {
-                // Restore button state
+            } catch (error) {
+                // Restore button state on error
                 manualUpdateCheckBtn.disabled = false;
                 manualUpdateCheckBtn.textContent = originalText;
                 manualUpdateCheckBtn.classList.remove('loading');
             }
+        });
+        
+        // Listen for update-not-available event
+        window.addEventListener('update-not-available', () => {
+            // Show success state
+            manualUpdateCheckBtn.disabled = true;
+            manualUpdateCheckBtn.textContent = 'You are up to date :)';
+            manualUpdateCheckBtn.classList.remove('loading');
+            manualUpdateCheckBtn.classList.add('success');
+            
+            // Restore button after 5 seconds
+            setTimeout(() => {
+                manualUpdateCheckBtn.disabled = false;
+                manualUpdateCheckBtn.textContent = originalText;
+                manualUpdateCheckBtn.classList.remove('success');
+            }, 5000);
+        });
+        
+        // Listen for update-available event (restore button from loading state)
+        window.addEventListener('update-available', () => {
+            manualUpdateCheckBtn.disabled = false;
+            manualUpdateCheckBtn.textContent = originalText;
+            manualUpdateCheckBtn.classList.remove('loading');
         });
     }
 

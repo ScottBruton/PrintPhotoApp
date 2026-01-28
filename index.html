@@ -316,12 +316,16 @@
           setDownloadState();
           updateProgress.classList.add('hidden');
           showBanner();
+          // Dispatch event to restore manual check button
+          window.dispatchEvent(new CustomEvent('update-available'));
         });
         
         // Update not available
         window.electron.onUpdateNotAvailable((info) => {
           console.log('No updates available');
           // Don't show banner if no update
+          // Dispatch event to trigger success state on manual check button
+          window.dispatchEvent(new CustomEvent('update-not-available'));
         });
         
         // Update error
