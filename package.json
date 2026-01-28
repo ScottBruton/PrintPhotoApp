@@ -1,6 +1,6 @@
 {
   "name": "printphotoapp",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -38,6 +38,7 @@
   "build": {
     "appId": "com.scottbruton.printphotoapp",
     "productName": "PrintPhotoApp",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "asar": true,
     "forceCodeSigning": false,
     "files": [

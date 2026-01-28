@@ -50,7 +50,7 @@ jobs:
           }
           Write-Host "✅ Python executable built successfully"
           
-          $installer = Get-ChildItem "dist/PrintPhotoApp Setup *.exe" | Select-Object -First 1
+          $installer = Get-ChildItem "dist/PrintPhotoApp-Setup-*.exe" | Select-Object -First 1
           if ($installer) {
             Write-Host "✅ Installer found: $($installer.Name)"
           } else {
