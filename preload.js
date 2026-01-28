@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld("electron", {
   onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (event, progress) => callback(progress)),
   onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info)),
   onUpdateDismissed: (callback) => ipcRenderer.on('update-dismissed', () => callback()),
+  // Update state queries
+  isUpdateDownloaded: () => ipcRenderer.invoke('update-is-downloaded'),
   // Update actions
   downloadUpdate: () => ipcRenderer.send('update-download-now'),
   installUpdate: () => ipcRenderer.send('update-install-now'),

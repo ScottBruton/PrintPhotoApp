@@ -13,6 +13,8 @@ autoUpdater.logger = log;
 let mainWindow = null;
 let isUpdateChecking = false;
 let isUpdateDownloading = false;
+let isUpdateDownloaded = false; // Track if update is ready to install
+let downloadedUpdateInfo = null; // Store info about downloaded update
 
 /**
  * Initialize auto-updater with proper configuration
@@ -103,6 +105,8 @@ function setupAutoUpdaterEvents() {
     autoUpdater.on('update-downloaded', (info) => {
         log.info('Update downloaded successfully:', info.version);
         isUpdateDownloading = false;
+        isUpdateDownloaded = true;
+        downloadedUpdateInfo = info;
         sendToRenderer('update-downloaded', {
             version: info.version
         });
@@ -113,6 +117,15 @@ function setupAutoUpdaterEvents() {
  * Set up IPC handlers for renderer to trigger update actions
  */
 function setupUpdateIPC(ipcMainRef) {
+    // Check if update is already downloaded
+    ipcMainRef.handle('update-is-downloaded', () => {
+        log.info('Renderer checking if update is downloaded');
+        return {
+            isDownloaded: isUpdateDownloaded,
+            updateInfo: downloadedUpdateInfo
+        };
+    });
+    
     // Download update
     ipcMainRef.on('update-download-now', async () => {
         log.info('Renderer requested update download');
@@ -130,7 +143,14 @@ function setupUpdateIPC(ipcMainRef) {
     // Install and restart
     ipcMainRef.on('update-install-now', () => {
         log.info('Renderer requested install and restart');
-        autoUpdater.quitAndInstall(false, true);
+        if (isUpdateDownloaded) {
+            autoUpdater.quitAndInstall(false, true);
+        } else {
+            log.error('Install requested but no update downloaded');
+            sendToRenderer('update-error', {
+                message: 'No update file available to install'
+            });
+        }
     });
     
     // Dismiss/remind later

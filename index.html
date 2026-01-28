@@ -243,7 +243,7 @@
     <!-- Update Handler Script -->
     <script>
       // Update UI Controller
-      (function() {
+      (async function() {
         const updateBanner = document.getElementById('updateBanner');
         const updateTitle = document.getElementById('updateTitle');
         const updateMessage = document.getElementById('updateMessage');
@@ -255,6 +255,37 @@
         const laterBtn = document.getElementById('updateLaterBtn');
         
         let currentUpdateInfo = null;
+        
+        // Initialize button states
+        function setDownloadState() {
+          downloadBtn.classList.remove('hidden');
+          downloadBtn.disabled = false;
+          installBtn.classList.add('hidden');
+          installBtn.disabled = true;
+        }
+        
+        function setReadyToInstallState() {
+          downloadBtn.classList.add('hidden');
+          downloadBtn.disabled = true;
+          installBtn.classList.remove('hidden');
+          installBtn.disabled = false;
+        }
+        
+        // Check on startup if update is already downloaded
+        try {
+          const downloadState = await window.electron.isUpdateDownloaded();
+          if (downloadState.isDownloaded && downloadState.updateInfo) {
+            // Update already downloaded, show install button
+            currentUpdateInfo = downloadState.updateInfo;
+            updateTitle.textContent = 'Update Ready';
+            updateMessage.textContent = `Version ${downloadState.updateInfo.version} is ready to install`;
+            setReadyToInstallState();
+            updateProgress.classList.add('hidden');
+            showBanner();
+          }
+        } catch (error) {
+          console.error('Failed to check download state:', error);
+        }
         
         // Show banner
         function showBanner() {
@@ -280,8 +311,7 @@
           currentUpdateInfo = info;
           updateTitle.textContent = `Version ${info.version} Available`;
           updateMessage.textContent = 'A new version is ready to download';
-          downloadBtn.classList.remove('hidden');
-          installBtn.classList.add('hidden');
+          setDownloadState();
           updateProgress.classList.add('hidden');
           showBanner();
         });
@@ -297,6 +327,10 @@
           console.error('Update error:', error);
           updateTitle.textContent = 'Update Error';
           updateMessage.textContent = error.message || 'Failed to check for updates';
+          updateProgress.classList.add('hidden');
+          // Reset button states on error
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = 'Download';
           downloadBtn.classList.add('hidden');
           installBtn.classList.add('hidden');
           showBanner();
@@ -311,16 +345,19 @@
           updateProgressFill.style.width = `${percent}%`;
           updateProgressText.textContent = `${percent}%`;
           updateMessage.textContent = `Downloading update... (${formatBytes(progress.bytesPerSecond)}/s)`;
+          // Keep download button disabled and install button hidden during download
+          downloadBtn.disabled = true;
+          installBtn.disabled = true;
         });
         
         // Update downloaded
         window.electron.onUpdateDownloaded((info) => {
           console.log('Update downloaded:', info);
+          currentUpdateInfo = info;
           updateTitle.textContent = 'Update Ready';
-          updateMessage.textContent = `Version ${info.version} has been downloaded`;
+          updateMessage.textContent = `Version ${info.version} is ready to install`;
           updateProgress.classList.add('hidden');
-          downloadBtn.classList.add('hidden');
-          installBtn.classList.remove('hidden');
+          setReadyToInstallState();
         });
         
         // Update dismissed
@@ -331,14 +368,20 @@
         // Button handlers
         downloadBtn.addEventListener('click', () => {
           console.log('Download button clicked');
-          downloadBtn.disabled = true;
-          downloadBtn.textContent = 'Downloading...';
-          window.electron.downloadUpdate();
+          if (!downloadBtn.disabled) {
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Downloading...';
+            window.electron.downloadUpdate();
+          }
         });
         
         installBtn.addEventListener('click', () => {
           console.log('Install button clicked');
-          window.electron.installUpdate();
+          if (!installBtn.disabled) {
+            installBtn.disabled = true;
+            installBtn.textContent = 'Installing...';
+            window.electron.installUpdate();
+          }
         });
         
         laterBtn.addEventListener('click', () => {
