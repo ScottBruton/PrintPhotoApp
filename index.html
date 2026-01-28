@@ -260,13 +260,15 @@
         function setDownloadState() {
           downloadBtn.classList.remove('hidden');
           downloadBtn.disabled = false;
-          installBtn.classList.add('hidden');
+          downloadBtn.textContent = 'Download';
+          installBtn.classList.remove('hidden');
           installBtn.disabled = true;
         }
         
         function setReadyToInstallState() {
-          downloadBtn.classList.add('hidden');
-          downloadBtn.disabled = true;
+          downloadBtn.classList.remove('hidden');
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = 'Download';
           installBtn.classList.remove('hidden');
           installBtn.disabled = false;
         }
@@ -329,10 +331,11 @@
           updateMessage.textContent = error.message || 'Failed to check for updates';
           updateProgress.classList.add('hidden');
           // Reset button states on error
+          downloadBtn.classList.remove('hidden');
           downloadBtn.disabled = false;
           downloadBtn.textContent = 'Download';
-          downloadBtn.classList.add('hidden');
-          installBtn.classList.add('hidden');
+          installBtn.classList.remove('hidden');
+          installBtn.disabled = true;
           showBanner();
           // Auto-hide after 5 seconds
           setTimeout(hideBanner, 5000);
@@ -345,8 +348,11 @@
           updateProgressFill.style.width = `${percent}%`;
           updateProgressText.textContent = `${percent}%`;
           updateMessage.textContent = `Downloading update... (${formatBytes(progress.bytesPerSecond)}/s)`;
-          // Keep download button disabled and install button hidden during download
+          // Keep both buttons visible but disabled during download
+          downloadBtn.classList.remove('hidden');
           downloadBtn.disabled = true;
+          downloadBtn.textContent = 'Downloading...';
+          installBtn.classList.remove('hidden');
           installBtn.disabled = true;
         });
         
