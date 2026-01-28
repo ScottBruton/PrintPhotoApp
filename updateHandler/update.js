@@ -30,7 +30,7 @@ function initAutoUpdater(ipcMainRef, mainWindowRef) {
     
     // Configure auto-updater
     autoUpdater.autoDownload = false; // We'll control when to download
-    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.autoInstallOnAppQuit = false; // Only install when user clicks "Install & Restart"
     
     // Configure GitHub provider
     try {
