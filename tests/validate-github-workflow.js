@@ -112,7 +112,7 @@ if (workflowContent.includes('pip install pyinstaller')) {
 }
 
 // 10. Python exe build
-if (workflowContent.includes('pyinstaller print_handler.spec')) {
+if (workflowContent.includes('pyinstaller print_handler.spec') || workflowContent.includes('npm run release')) {
     pass('Python executable build step present');
 } else {
     fail('Missing Python exe build step');
@@ -126,7 +126,7 @@ if (workflowContent.includes('print_handler.exe')) {
 }
 
 // 12. Electron build
-if (workflowContent.includes('npm run build')) {
+if (workflowContent.includes('npm run build') || workflowContent.includes('npm run release')) {
     pass('Electron build step present');
 } else {
     fail('Missing Electron build step');

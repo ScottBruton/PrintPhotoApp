@@ -479,7 +479,22 @@ class PhotoLayoutEditor {
     const manualUpdateCheckBtn = document.getElementById('manualUpdateCheck');
     if (manualUpdateCheckBtn) {
         manualUpdateCheckBtn.addEventListener('click', async () => {
-            await window.electron.manualUpdateCheck();
+            // Store original text
+            const originalText = manualUpdateCheckBtn.textContent;
+            
+            // Show loading state
+            manualUpdateCheckBtn.disabled = true;
+            manualUpdateCheckBtn.innerHTML = '<span class="spinner"></span> Checking...';
+            manualUpdateCheckBtn.classList.add('loading');
+            
+            try {
+                await window.electron.manualUpdateCheck();
+            } finally {
+                // Restore button state
+                manualUpdateCheckBtn.disabled = false;
+                manualUpdateCheckBtn.textContent = originalText;
+                manualUpdateCheckBtn.classList.remove('loading');
+            }
         });
     }
 

@@ -37,22 +37,27 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
       
-      - name: Build Python executable
-        run: pyinstaller print_handler.spec
+      - name: Build full release (Python + Electron)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release
       
-      - name: Verify Python executable exists
+      - name: Verify build artifacts
         run: |
           if (!(Test-Path "dist/print_handler.exe")) {
             Write-Error "print_handler.exe not found in dist/"
             exit 1
           }
           Write-Host "✅ Python executable built successfully"
+          
+          $installer = Get-ChildItem "dist/PrintPhotoApp-Setup-*.exe" | Select-Object -First 1
+          if ($installer) {
+            Write-Host "✅ Installer found: $($installer.Name)"
+          } else {
+            Write-Error "Installer not found!"
+            exit 1
+          }
         shell: pwsh
-      
-      - name: Build Electron app
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build
       
       - name: List build artifacts
         run: |
@@ -92,7 +97,7 @@ jobs:
             See commit history for details.
             
             ---
-            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.extract_version.outputs.VERSION }}...v${{ steps.extract_version.outputs.VERSION }}
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/v${{ steps.extract_version.outputs.VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
