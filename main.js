@@ -381,7 +381,7 @@ app.whenReady().then(async () => {
             console.log('Starting background update check...');
             const { initAutoUpdater } = require('./updateHandler/update.js');
             initAutoUpdater(ipcMain, mainWindow);
-        }, 5000); // 5 seconds after app starts
+        }, 1000); // 1 second after app starts - enough for window to load
     } else {
         console.log('Development mode - auto-updates disabled');
     }

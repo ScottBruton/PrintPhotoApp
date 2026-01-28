@@ -392,21 +392,31 @@
           return `${Math.round(bytes / Math.pow(k, i) * 100) / 100} ${sizes[i]}`;
         }
         
-        // Check on startup if update is already downloaded
+        // Check on startup if update is already downloaded (with retry for timing issues)
         (async () => {
-          try {
-            const downloadState = await window.electron.isUpdateDownloaded();
-            if (downloadState.isDownloaded && downloadState.updateInfo) {
-              // Update already downloaded, show install button
-              currentUpdateInfo = downloadState.updateInfo;
-              updateTitle.textContent = 'Update Ready';
-              updateMessage.textContent = `Version ${downloadState.updateInfo.version} is ready to install`;
-              setReadyToInstallState();
-              updateProgress.classList.add('hidden');
-              showBanner();
+          const maxRetries = 3;
+          const retryDelay = 2000; // 2 seconds between retries
+          
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              const downloadState = await window.electron.isUpdateDownloaded();
+              if (downloadState.isDownloaded && downloadState.updateInfo) {
+                // Update already downloaded, show install button
+                currentUpdateInfo = downloadState.updateInfo;
+                updateTitle.textContent = 'Update Ready';
+                updateMessage.textContent = `Version ${downloadState.updateInfo.version} is ready to install`;
+                setReadyToInstallState();
+                updateProgress.classList.add('hidden');
+                showBanner();
+              }
+              break; // Success, exit retry loop
+            } catch (error) {
+              if (attempt < maxRetries) {
+                // Handler not ready yet, wait and retry
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+              }
+              // Silent fail on last attempt - handler may not be registered in dev mode
             }
-          } catch (error) {
-            console.error('Failed to check download state:', error);
           }
         })();
       })();
