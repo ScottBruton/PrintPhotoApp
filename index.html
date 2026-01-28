@@ -163,25 +163,31 @@
         <h2>Edit Image</h2>
         <div id="imageEditorPreview" class="image-container"></div>
         <div class="image-controls">
-          <div>
-            <label>Zoom</label>
-            <input
-              type="range"
-              id="imageZoom"
-              min="100"
-              max="200"
-              value="100"
-            />
+          <div class="slider-control">
+            <label>Zoom (<span id="zoomValue">100</span>%)</label>
+            <div class="slider-with-reset">
+              <input
+                type="range"
+                id="imageZoom"
+                min="50"
+                max="500"
+                value="100"
+              />
+              <button id="resetZoom" class="reset-slider-btn">Reset</button>
+            </div>
           </div>
-          <div>
-            <label>Rotation</label>
-            <input
-              type="range"
-              id="imageRotation"
-              min="0"
-              max="360"
-              value="0"
-            />
+          <div class="slider-control">
+            <label>Rotation (<span id="rotationValue">0</span>°)</label>
+            <div class="slider-with-reset">
+              <input
+                type="range"
+                id="imageRotation"
+                min="0"
+                max="360"
+                value="0"
+              />
+              <button id="resetRotation" class="reset-slider-btn">Reset</button>
+            </div>
           </div>
           <div class="image-editor-controls">
             <button id="fitImage">Fit to Card</button>

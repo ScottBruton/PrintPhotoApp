@@ -713,10 +713,27 @@ class PhotoLayoutEditor {
       translateY: 0,
     };
 
-    // Apply image settings
-    img.style.objectFit = settings.objectFit;
-    img.style.width = settings.width;
-    img.style.height = settings.height;
+    // Set initial image dimensions based on fit mode
+    const containerAspect = card.size.width / card.size.height;
+    const imageAspect = imageData.originalWidth / imageData.originalHeight;
+
+    if (settings.fit === "fill") {
+      // Fill mode: stretch to fill container
+      img.style.width = "100%";
+      img.style.height = "100%";
+    } else {
+      // Contain mode: maintain aspect ratio
+      if (containerAspect > imageAspect) {
+        img.style.width = "auto";
+        img.style.height = "100%";
+      } else {
+        img.style.width = "100%";
+        img.style.height = "auto";
+      }
+    }
+
+    // Apply object fit
+    img.style.objectFit = settings.objectFit || "contain";
 
     // Build transform
     const transform = [];
@@ -1204,10 +1221,117 @@ class PhotoLayoutEditor {
       }
 
       imgClone.style.transform = transform.join(" ");
-      imgClone.style.objectFit = editState.objectFit;
-      imgClone.style.width = editState.width;
-      imgClone.style.height = editState.height;
+      imgClone.style.objectFit = editState.objectFit || "contain";
+      
+      // Apply width/height for fill mode, otherwise keep aspect-ratio-based dimensions
+      if (editState.fit === "fill") {
+        imgClone.style.width = "100%";
+        imgClone.style.height = "100%";
+      } else {
+        // Reset to aspect-ratio-based dimensions
+        if (containerAspect > imageAspect) {
+          imgClone.style.width = "auto";
+          imgClone.style.height = "100%";
+        } else {
+          imgClone.style.width = "100%";
+          imgClone.style.height = "auto";
+        }
+      }
     };
+
+    // Add drag functionality for panning when zoomed
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startTranslateX = 0;
+    let startTranslateY = 0;
+
+    previewContainer.style.cursor = editState.zoom > 100 ? 'grab' : 'default';
+
+    // Calculate boundary limits based on zoom and container size
+    const calculateBounds = () => {
+      const containerWidth = card.size.width * 3.7795275591; // Convert mm to pixels (96 DPI)
+      const containerHeight = card.size.height * 3.7795275591;
+      const scale = editState.zoom / 100;
+      
+      // Calculate the scaled image dimensions
+      const containerAspect = card.size.width / card.size.height;
+      const imageAspect = card.image.originalWidth / card.image.originalHeight;
+      
+      let imageWidth, imageHeight;
+      
+      // In fill mode, image fills entire container before scaling
+      if (editState.fit === "fill") {
+        imageWidth = containerWidth;
+        imageHeight = containerHeight;
+      } else {
+        // In contain mode, image maintains aspect ratio
+        if (containerAspect > imageAspect) {
+          imageHeight = containerHeight;
+          imageWidth = imageHeight * imageAspect;
+        } else {
+          imageWidth = containerWidth;
+          imageHeight = imageWidth / imageAspect;
+        }
+      }
+      
+      const scaledWidth = imageWidth * scale;
+      const scaledHeight = imageHeight * scale;
+      
+      // Calculate max translation
+      // When zoomed in: prevent image from being dragged away from edges
+      // When zoomed out: allow image to move within container bounds
+      let maxX, maxY;
+      if (scaledWidth >= containerWidth) {
+        maxX = (scaledWidth - containerWidth) / 2;
+      } else {
+        maxX = (containerWidth - scaledWidth) / 2;
+      }
+      
+      if (scaledHeight >= containerHeight) {
+        maxY = (scaledHeight - containerHeight) / 2;
+      } else {
+        maxY = (containerHeight - scaledHeight) / 2;
+      }
+      
+      return { maxX, maxY };
+    };
+
+    previewContainer.addEventListener('mousedown', (e) => {
+      const canDrag = updateCursor();
+      if (canDrag) {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startTranslateX = editState.translateX;
+        startTranslateY = editState.translateY;
+        previewContainer.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        const { maxX, maxY } = calculateBounds();
+        
+        // Clamp translation within bounds
+        editState.translateX = Math.max(-maxX, Math.min(maxX, startTranslateX + deltaX));
+        editState.translateY = Math.max(-maxY, Math.min(maxY, startTranslateY + deltaY));
+        
+        updatePreview();
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        updateCursor();
+        saveState();
+      }
+    });
 
     const saveState = () => {
       history.splice(historyIndex + 1);
@@ -1224,8 +1348,23 @@ class PhotoLayoutEditor {
     // Initialize controls with current values
     const zoomInput = document.getElementById("imageZoom");
     const rotationInput = document.getElementById("imageRotation");
+    const zoomValueDisplay = document.getElementById("zoomValue");
+    const rotationValueDisplay = document.getElementById("rotationValue");
     zoomInput.value = editState.zoom;
     rotationInput.value = editState.rotation;
+    zoomValueDisplay.textContent = editState.zoom;
+    rotationValueDisplay.textContent = editState.rotation;
+
+    // Helper function to update cursor based on drag capability
+    const updateCursor = () => {
+      // Disable drag when in fill mode at 100% zoom (image exactly fills canvas)
+      const canDrag = !(editState.fit === "fill" && editState.zoom === 100);
+      previewContainer.style.cursor = canDrag ? 'grab' : 'default';
+      return canDrag;
+    };
+
+    // Update cursor based on initial state
+    updateCursor();
 
     // Save initial state
     saveState();
@@ -1233,20 +1372,26 @@ class PhotoLayoutEditor {
     // Zoom handler
     zoomInput.oninput = () => {
       editState.zoom = parseInt(zoomInput.value);
+      zoomValueDisplay.textContent = editState.zoom;
+      updateCursor();
       updatePreview();
     };
     zoomInput.onchange = () => {
       editState.zoom = parseInt(zoomInput.value);
+      zoomValueDisplay.textContent = editState.zoom;
+      updateCursor();
       saveState();
     };
 
     // Rotation handler
     rotationInput.oninput = () => {
       editState.rotation = parseInt(rotationInput.value);
+      rotationValueDisplay.textContent = editState.rotation;
       updatePreview();
     };
     rotationInput.onchange = () => {
       editState.rotation = parseInt(rotationInput.value);
+      rotationValueDisplay.textContent = editState.rotation;
       saveState();
     };
 
@@ -1264,7 +1409,10 @@ class PhotoLayoutEditor {
 
       zoomInput.value = editState.zoom;
       rotationInput.value = editState.rotation;
+      zoomValueDisplay.textContent = editState.zoom;
+      rotationValueDisplay.textContent = editState.rotation;
 
+      updateCursor();
       updatePreview();
       saveState();
     };
@@ -1283,7 +1431,10 @@ class PhotoLayoutEditor {
 
       zoomInput.value = editState.zoom;
       rotationInput.value = editState.rotation;
+      zoomValueDisplay.textContent = editState.zoom;
+      rotationValueDisplay.textContent = editState.rotation;
 
+      updateCursor();
       updatePreview();
       saveState();
     };
@@ -1291,6 +1442,7 @@ class PhotoLayoutEditor {
     document.getElementById("rotateLeft").onclick = () => {
       editState.rotation = (editState.rotation - 90 + 360) % 360;
       rotationInput.value = editState.rotation;
+      rotationValueDisplay.textContent = editState.rotation;
       updatePreview();
       saveState();
     };
@@ -1298,6 +1450,28 @@ class PhotoLayoutEditor {
     document.getElementById("rotateRight").onclick = () => {
       editState.rotation = (editState.rotation + 90) % 360;
       rotationInput.value = editState.rotation;
+      rotationValueDisplay.textContent = editState.rotation;
+      updatePreview();
+      saveState();
+    };
+
+    // Reset Zoom button
+    document.getElementById("resetZoom").onclick = () => {
+      editState.zoom = 100;
+      editState.translateX = 0;
+      editState.translateY = 0;
+      zoomInput.value = 100;
+      zoomValueDisplay.textContent = 100;
+      updateCursor();
+      updatePreview();
+      saveState();
+    };
+
+    // Reset Rotation button
+    document.getElementById("resetRotation").onclick = () => {
+      editState.rotation = 0;
+      rotationInput.value = 0;
+      rotationValueDisplay.textContent = 0;
       updatePreview();
       saveState();
     };
@@ -1309,6 +1483,9 @@ class PhotoLayoutEditor {
         Object.assign(editState, history[historyIndex]);
         zoomInput.value = editState.zoom;
         rotationInput.value = editState.rotation;
+        zoomValueDisplay.textContent = editState.zoom;
+        rotationValueDisplay.textContent = editState.rotation;
+        updateCursor();
         updatePreview();
 
         // Update session state
@@ -1326,6 +1503,9 @@ class PhotoLayoutEditor {
         Object.assign(editState, history[historyIndex]);
         zoomInput.value = editState.zoom;
         rotationInput.value = editState.rotation;
+        zoomValueDisplay.textContent = editState.zoom;
+        rotationValueDisplay.textContent = editState.rotation;
+        updateCursor();
         updatePreview();
 
         // Update session state
@@ -1338,30 +1518,6 @@ class PhotoLayoutEditor {
 
     // Apply changes handler
     document.getElementById("applyChanges").onclick = () => {
-      // Update the original image with current settings
-      const transform = [];
-      transform.push("translate(-50%, -50%)");
-
-      if (editState.translateX || editState.translateY) {
-        transform.push(
-          `translate(${editState.translateX}px, ${editState.translateY}px}`
-        );
-      }
-
-      if (editState.rotation) {
-        transform.push(`rotate(${editState.rotation}deg)`);
-      }
-
-      if (editState.zoom) {
-        transform.push(`scale(${editState.zoom / 100})`);
-      }
-
-      // Update the original image
-      img.style.transform = transform.join(" ");
-      img.style.objectFit = editState.objectFit;
-      img.style.width = editState.width;
-      img.style.height = editState.height;
-
       // Create complete image settings object with latest editState
       const completeImageSettings = {
         ...editState,
@@ -1388,6 +1544,12 @@ class PhotoLayoutEditor {
 
       // Update layout state
       this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
+
+      // Get the placeholder and refresh the display with updated settings
+      const placeholder = document.getElementById(cardId);
+      if (placeholder && card.image) {
+        this.updateCardDisplay(placeholder, card.image);
+      }
 
       // Close modal
       editorModal.style.display = "none";
@@ -1540,6 +1702,15 @@ class PhotoLayoutEditor {
   }
 
   handleImageFile(file, placeholder, cardId) {
+    // Show loading spinner
+    const spinner = document.createElement('div');
+    spinner.className = 'loading-spinner';
+    spinner.innerHTML = `
+      <div class="spinner-circle"></div>
+      <div class="spinner-text">Loading...</div>
+    `;
+    placeholder.appendChild(spinner);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -1587,10 +1758,21 @@ class PhotoLayoutEditor {
 
         this.layoutRenderer.setLayoutState(this.sessionManager.sessionData);
 
-        // Update display
+        // Remove spinner and update display
+        spinner.remove();
         this.updateCardDisplay(placeholder, imageData);
       };
+      img.onerror = () => {
+        // Remove spinner and show error
+        spinner.remove();
+        alert('Failed to load image. Please try again.');
+      };
       img.src = event.target.result;
+    };
+    reader.onerror = () => {
+      // Remove spinner and show error
+      spinner.remove();
+      alert('Failed to read file. Please try again.');
     };
     reader.readAsDataURL(file);
   }
