@@ -243,7 +243,7 @@
     <!-- Update Handler Script -->
     <script>
       // Update UI Controller
-      (async function() {
+      (function() {
         const updateBanner = document.getElementById('updateBanner');
         const updateTitle = document.getElementById('updateTitle');
         const updateMessage = document.getElementById('updateMessage');
@@ -271,22 +271,6 @@
           downloadBtn.textContent = 'Download';
           installBtn.classList.remove('hidden');
           installBtn.disabled = false;
-        }
-        
-        // Check on startup if update is already downloaded
-        try {
-          const downloadState = await window.electron.isUpdateDownloaded();
-          if (downloadState.isDownloaded && downloadState.updateInfo) {
-            // Update already downloaded, show install button
-            currentUpdateInfo = downloadState.updateInfo;
-            updateTitle.textContent = 'Update Ready';
-            updateMessage.textContent = `Version ${downloadState.updateInfo.version} is ready to install`;
-            setReadyToInstallState();
-            updateProgress.classList.add('hidden');
-            showBanner();
-          }
-        } catch (error) {
-          console.error('Failed to check download state:', error);
         }
         
         // Show banner
@@ -407,6 +391,24 @@
           const i = Math.floor(Math.log(bytes) / Math.log(k));
           return `${Math.round(bytes / Math.pow(k, i) * 100) / 100} ${sizes[i]}`;
         }
+        
+        // Check on startup if update is already downloaded
+        (async () => {
+          try {
+            const downloadState = await window.electron.isUpdateDownloaded();
+            if (downloadState.isDownloaded && downloadState.updateInfo) {
+              // Update already downloaded, show install button
+              currentUpdateInfo = downloadState.updateInfo;
+              updateTitle.textContent = 'Update Ready';
+              updateMessage.textContent = `Version ${downloadState.updateInfo.version} is ready to install`;
+              setReadyToInstallState();
+              updateProgress.classList.add('hidden');
+              showBanner();
+            }
+          } catch (error) {
+            console.error('Failed to check download state:', error);
+          }
+        })();
       })();
     </script>
   </body>
